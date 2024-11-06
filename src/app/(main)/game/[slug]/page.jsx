@@ -16,18 +16,33 @@ export async function generateMetadata({ params }) {
 
 export default async function Page({ params }) {
   const game = await getGameBySlug(params.slug);
+
+  if (!game) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <p className="text-center">Game not found</p>
+      </div>
+    );
+  }
+
   return (
-    <div>
+    <div className="container mx-auto px-4 py-8">
+      {/* Breadcrumb */}
       <nav className="rounded-md w-full mb-4">
         <ol className="list-reset flex">
           <li>
-            <a href="/">Home</a>
+            <a href="/" className="hover:text-accent">Home</a>
           </li>
           <li>
             <span className="text-gray-500 mx-2">/</span>
           </li>
           <li>
-            <a href={game?.categories[0]?.title}>{game?.categories[0]?.title}</a>
+            <a 
+              href={`/category/${game?.categories[0]?.slug}`} 
+              className="hover:text-accent"
+            >
+              {game?.categories[0]?.title}
+            </a>
           </li>
           <li>
             <span className="text-gray-500 mx-2">/</span>
@@ -38,10 +53,13 @@ export default async function Page({ params }) {
         </ol>
       </nav>
 
-      <GameEmulator game={game} />
+      <div className="max-w-4xl mx-auto">
+        <GameEmulator game={game} />
+      </div>
 
+      {/* Comments */}
       <div className="mt-8">
-        <Suspense fallback={<p>Loading game...</p>}>
+        <Suspense fallback={<p>Loading comments...</p>}>
           <Disqus
             url={`${process.env.NEXT_WEBSITE_URL}/game/${game?.slug}`}
             identifier={game?.id}

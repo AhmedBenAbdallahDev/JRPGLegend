@@ -2,6 +2,10 @@ import { ChevronRightIcon } from "@heroicons/react/24/outline"
 import Image from "next/image"
 
 export default function GameCategory({category}) {
+  if (!category || !category.games) {
+    return null;
+  }
+
   return (
     <section className="mb-4">
       
@@ -14,20 +18,22 @@ export default function GameCategory({category}) {
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {category.games.map((game) => (
-          <a href={`/game/${game.slug}`} key={game.id} className="group">
-            <div className="overflow-hidden rounded-lg border border-accent-secondary mb-2">
-              <Image 
-              src={`/game/${game.image}`}
-              width={300}
-              height={300}
-              alt={game.title}
-              quality={80}
-              className="w-full h-full object-cover transition-transform duration-300
-              group-hover:scale-105"/>
+          game && (
+            <a href={`/game/${game.slug}`} key={game.id} className="group">
+              <div className="overflow-hidden rounded-lg border border-accent-secondary mb-2">
+                <Image 
+                src={`/game/${game.image || 'default-image.png'}`}
+                width={300}
+                height={300}
+                alt={game.title || 'Game'}
+                quality={80}
+                className="w-full h-full object-cover transition-transform duration-300
+                group-hover:scale-105"/>
           </div>
               <p className="text-sm text-accent">{category.title}</p>
               <h1 className="font-medium">{game.title}</h1>
           </a>
+          )
         ))}
       </div>
 

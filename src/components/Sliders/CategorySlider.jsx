@@ -8,6 +8,10 @@ import { ChevronRightIcon } from "@heroicons/react/24/outline";
 import Image from "next/image";
 
 export default function CategorySlider({ categories }) {
+  if (!categories || !Array.isArray(categories)) {
+    return null;
+  }
+
   const breakpoints = {
     320: {
       slidesPerView: 3,
@@ -52,21 +56,22 @@ export default function CategorySlider({ categories }) {
         }}
       >
         {categories.map((item, i) => (
-          <SwiperSlide key={i} className="group">
-            <a href={`/category/${item.slug}`} className="group">
-              <div className="overflow-hidden rounded-lg border-accent-secondary border mb-2">
-                <Image
-                  src={`/category/${item.image}`}
-                  width={300}
-                  height={300}
-                  alt={item.title}
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                />
-              </div>
-              <h1>{item.title}</h1>
-              <p>{item.description}</p>
-            </a>
-          </SwiperSlide>
+          item && item.title && (
+            <SwiperSlide key={i} className="group">
+              <a href={`/category/${item.slug}`} className="group">
+                <div className="overflow-hidden rounded-lg border-accent-secondary border mb-2">
+                  <Image
+                    src={`/category/${item.image || 'default-image.png'}`}
+                    width={300}
+                    height={300}
+                    alt={item.title}
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                </div>
+                <h1>{item.title}</h1>
+              </a>
+            </SwiperSlide>
+          )
         ))}
       </Swiper>
     </div>

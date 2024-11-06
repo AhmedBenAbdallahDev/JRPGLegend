@@ -58,7 +58,3 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
     ]
 }
 ```
-
-## Find Bug Fixes Here
-
-Open [https://raddy.dev/blog/build-your-own-retro-gaming-website-next-js-14-prisma/](Raddy's Blog - Bug Fixes)

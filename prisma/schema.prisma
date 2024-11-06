@@ -6,37 +6,35 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Game {
-  id          Int        @id @default(autoincrement())
-  title       String
-  slug        String     @unique
-  description String
-  image       String
-  game_url    String
-  published   Boolean
-  created_at  DateTime   @default(now())
-  categories  Category[]
+  id        Int      @id @default(autoincrement())
+  title     String
+  slug      String   @unique
+  game_url  String?
+  image     String?
+  published Boolean  @default(false)
+  categories Category[]
 }
 
 model Category {
-  id    Int    @id @default(autoincrement())
-  title String
-  slug  String
-  core  String
-  image String @default("default_image.png")
-  games Game[]
+  id        Int      @id @default(autoincrement())
+  title     String
+  slug      String   @unique
+  image     String?
+  games     Game[]
 }
 
 model User {
-  id Int @id @default(autoincrement())
-  name String?
-  email String @unique
-  password String
-  role String?
+  id         Int      @id @default(autoincrement())
+  name       String?
+  email      String   @unique
+  password   String
+  role       String?
   created_at DateTime @default(now())
   updated_at DateTime @default(now())
 }

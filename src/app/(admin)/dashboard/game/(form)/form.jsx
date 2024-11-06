@@ -197,7 +197,7 @@ export default function GameForm({categories, game}) {
         
       </form>
 
-      <form action={deleteFormAction}>
+      <form action={deleteFormAction} method="post">
         <input type="hidden" name="gameId" value={game?.id} />
         <button type="submit" className="bg-red-600 text-white p-2 rounded-lg text-sm">Delete Game</button>
       </form>

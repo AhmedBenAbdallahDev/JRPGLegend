@@ -2,6 +2,7 @@ import Image from "next/image"
 import Search from "@/components/Search"
 import MobileNav from "@/components/MobileNav"
 import { Cog8ToothIcon } from "@heroicons/react/24/outline"
+import Link from "next/link"
 
 export default function Header() {
   return ( 
@@ -20,6 +21,12 @@ export default function Header() {
         <MobileNav />
       </nav>
 
+      <Link 
+        href="/game/add" 
+        className="text-sm bg-accent-gradient py-2 px-4 rounded-xl border border-yellow-400 uppercase"
+      >
+        Add Game
+      </Link>
 
     </header>
   )

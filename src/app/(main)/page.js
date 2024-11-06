@@ -1,29 +1,35 @@
+export const dynamic = 'force-dynamic'
+
 import HeroSlider from "@/components/Sliders/HeroSlider";
 import CategorySlider from "@/components/Sliders/CategorySlider";
 import GameCategory from "@/components/GameCategory";
 import { getGameCategories, getGamesByCategoryId, getGamesBySelectedCategories } from "@/lib/gameQueries";
 
 export default async function Home() {
-  // const allCategoreis = await getGameCategories();
-  // const category = await getGamesByCategoryId(1);
+  try {
+    const [categories, category] = await Promise.all([
+      getGameCategories(),
+      getGamesByCategoryId(1)
+    ]);
 
-  const [allCategoreis, category] = await Promise.all([
-    getGameCategories(),
-    getGamesByCategoryId(1)
-  ]);
+    return (
+      <>
+        <div className="mb-6 text-center">
+          <a 
+            href="/game/add" 
+            className="inline-block bg-accent-gradient py-3 px-6 rounded-xl border border-yellow-400 uppercase hover:bg-accent/80 transition-colors"
+          >
+            🎮 Add Your Game
+          </a>
+        </div>
 
-  const selectedCategoryIds = [1,2,5];
-  const multipleCategories = await getGamesBySelectedCategories(selectedCategoryIds);
-
-  return (
-    <>
-      <HeroSlider />
-      <CategorySlider categories={allCategoreis} />
-      <GameCategory category={category} />
-
-      {/* <GameCategory category={multipleCategories[1]} /> */}
-      {/* <pre>{JSON.stringify(multipleCategories, null, 2)}</pre> */}
-
-    </>
-  );
+        <HeroSlider />
+        {categories.length > 0 && <CategorySlider categories={categories} />}
+        {category && <GameCategory category={category} />}
+      </>
+    );
+  } catch (error) {
+    console.error('Error in Home page:', error);
+    return <div>Error loading page content</div>;
+  }
 }
