@@ -3,11 +3,9 @@ CREATE TABLE "Game" (
     "id" SERIAL NOT NULL,
     "title" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
-    "description" TEXT NOT NULL,
-    "image" TEXT NOT NULL,
-    "game_url" TEXT NOT NULL,
-    "published" BOOLEAN NOT NULL,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "game_url" TEXT,
+    "image" TEXT,
+    "published" BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT "Game_pkey" PRIMARY KEY ("id")
 );
@@ -17,8 +15,7 @@ CREATE TABLE "Category" (
     "id" SERIAL NOT NULL,
     "title" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
-    "core" TEXT NOT NULL,
-    "image" TEXT NOT NULL DEFAULT 'default_image.png',
+    "image" TEXT,
 
     CONSTRAINT "Category_pkey" PRIMARY KEY ("id")
 );
@@ -44,6 +41,9 @@ CREATE TABLE "_CategoryToGame" (
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Game_slug_key" ON "Game"("slug");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Category_slug_key" ON "Category"("slug");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
