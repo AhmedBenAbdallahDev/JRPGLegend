@@ -1,44 +1,42 @@
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
-export async function POST(request) {
+export async function POST(req) {
   try {
-    const data = await request.json();
+    const data = await req.json();
     
-    // Validation
-    if (!data.title?.trim()) {
-      return Response.json({ error: 'Game title is required' }, { status: 400 });
-    }
-    if (!data.game_url?.trim()) {
-      return Response.json({ error: 'Game URL is required' }, { status: 400 });
-    }
+    // Create or find categories first
+    const categoryPromises = data.categories.map(async (cat) => {
+      return await prisma.category.upsert({
+        where: { slug: cat.slug },
+        update: {},
+        create: {
+          title: cat.title,
+          slug: cat.slug
+        }
+      });
+    });
 
-    // Create slug from title
-    const slug = data.title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
+    const categories = await Promise.all(categoryPromises);
 
+    // Create the game with the categories
     const game = await prisma.game.create({
       data: {
-        title: data.title.trim(),
-        slug,
-        game_url: data.game_url.trim(),
-        image: data.image?.trim() || '',
-        published: true,
-        ...(data.categoryIds?.length > 0 && {
-          categories: {
-            connect: data.categoryIds.map(id => ({ id: parseInt(id) }))
-          }
-        })
-      },
+        title: data.title,
+        slug: data.slug,
+        game_url: data.game_url,
+        image: data.image,
+        categories: {
+          connect: categories.map(cat => ({ id: cat.id }))
+        }
+      }
     });
 
     return Response.json(game);
   } catch (error) {
-    console.error('Error creating game:', error);
+    console.error(error);
     return Response.json(
-      { error: 'Failed to create game. Please try again.' },
+      { error: "Error creating game" },
       { status: 500 }
     );
   }
