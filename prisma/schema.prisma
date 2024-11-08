@@ -8,27 +8,28 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 model Game {
-  id        String   @id @default(cuid())
-  title     String
-  slug      String   @unique
+  id          String      @id @default(cuid())
+  title       String
+  slug        String      @unique
   description String?
-  image     String
-  gameLink  String   // URL to the game ROM file on your server
-  core      String   // Emulator core type (nes, snes, etc.)
-  published Boolean  @default(false)
-  categories Category[]
+  image       String      // Path or URL to game thumbnail
+  gameLink    String      // URL to the actual ROM file
+  core        String      // Emulator core type (snes, nes, etc.)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  categories  Category[]  // Relation to categories
 }
 
 model Category {
-  id        Int      @id @default(autoincrement())
+  id        String   @id @default(cuid())
   title     String
   slug      String   @unique
-  image     String?
-  games     Game[]
+  games     Game[]   // Relation to games
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model User {

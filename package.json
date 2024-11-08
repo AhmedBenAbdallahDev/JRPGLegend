@@ -16,7 +16,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.666.0",
     "@heroicons/react": "^2.1.5",
-    "@prisma/client": "^5.20.0",
+    "@prisma/client": "^5.22.0",
     "bcryptjs": "^2.4.3",
     "disqus-react": "^1.1.5",
     "next": "^14.2.14",
@@ -28,7 +28,7 @@
   },
   "devDependencies": {
     "postcss": "^8",
-    "prisma": "^5.20.0",
+    "prisma": "^5.22.0",
     "tailwindcss": "^3.4.1"
   }
 }
