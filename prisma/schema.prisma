@@ -12,11 +12,13 @@ datasource db {
 }
 
 model Game {
-  id        Int      @id @default(autoincrement())
+  id        String   @id @default(cuid())
   title     String
   slug      String   @unique
-  game_url  String?
-  image     String?
+  description String?
+  image     String
+  gameLink  String   // URL to the game ROM file on your server
+  core      String   // Emulator core type (nes, snes, etc.)
   published Boolean  @default(false)
   categories Category[]
 }

@@ -8,9 +8,11 @@ export default function GameForm({ categories }) {
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     title: '',
-    game_url: '',
-    image: '',
-    categoryIds: []
+    description: '',
+    image: null,
+    gameLink: '',
+    core: 'snes',
+    categoryId: ''
   });
 
   const handleSubmit = async (e) => {
@@ -105,6 +107,42 @@ export default function GameForm({ categories }) {
           ))}
         </select>
         <p className="text-sm text-gray-400 mt-1">Hold Ctrl/Cmd to select multiple</p>
+      </div>
+
+      <div className="mb-4">
+        <label className="block mb-2">
+          Game Link:
+          <input
+            type="text"
+            value={formData.gameLink}
+            onChange={(e) => setFormData({
+              ...formData,
+              gameLink: e.target.value
+            })}
+            placeholder="URL to game ROM file"
+            required
+          />
+        </label>
+      </div>
+
+      <div className="mb-4">
+        <label className="block mb-2">
+          Emulator Core:
+          <select
+            value={formData.core}
+            onChange={(e) => setFormData({
+              ...formData,
+              core: e.target.value
+            })}
+            required
+          >
+            <option value="snes">SNES</option>
+            <option value="nes">NES</option>
+            <option value="gba">Game Boy Advance</option>
+            <option value="n64">Nintendo 64</option>
+            {/* Add other cores as needed */}
+          </select>
+        </label>
       </div>
 
       <button
