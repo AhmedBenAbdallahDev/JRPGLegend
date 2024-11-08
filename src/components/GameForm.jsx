@@ -6,14 +6,15 @@ export default function GameForm({ categories = [] }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [formData, setFormData] = useState({
+  const initialFormData = {
     title: '',
+    slug: '',
     description: '',
-    image: null,
+    image: '',
     gameLink: '',
     core: 'snes',
     categoryId: ''
-  });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,7 +28,7 @@ export default function GameForm({ categories = [] }) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ...formData,
+          ...initialFormData,
           published: true // Auto-publish submitted games
         }),
       });
@@ -58,8 +59,8 @@ export default function GameForm({ categories = [] }) {
         <label className="block mb-2">Game Title *</label>
         <input
           type="text"
-          value={formData.title}
-          onChange={(e) => setFormData({...formData, title: e.target.value})}
+          value={initialFormData.title}
+          onChange={(e) => setInitialFormData({...initialFormData, title: e.target.value})}
           className="w-full p-3 rounded bg-primary border border-accent-secondary"
           required
           placeholder="Enter game title"
@@ -70,8 +71,8 @@ export default function GameForm({ categories = [] }) {
         <label className="block mb-2">Game URL *</label>
         <input
           type="url"
-          value={formData.game_url}
-          onChange={(e) => setFormData({...formData, game_url: e.target.value})}
+          value={initialFormData.game_url}
+          onChange={(e) => setInitialFormData({...initialFormData, game_url: e.target.value})}
           className="w-full p-3 rounded bg-primary border border-accent-secondary"
           required
           placeholder="https://..."
@@ -82,8 +83,8 @@ export default function GameForm({ categories = [] }) {
         <label className="block mb-2">Image URL</label>
         <input
           type="text"
-          value={formData.image}
-          onChange={(e) => setFormData({...formData, image: e.target.value})}
+          value={initialFormData.image}
+          onChange={(e) => setInitialFormData({...initialFormData, image: e.target.value})}
           className="w-full p-3 rounded bg-primary border border-accent-secondary"
           placeholder="Image URL (optional)"
         />
@@ -92,8 +93,8 @@ export default function GameForm({ categories = [] }) {
       <div>
         <label className="block">Category</label>
         <select
-          value={formData.categoryId}
-          onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+          value={initialFormData.categoryId}
+          onChange={(e) => setInitialFormData({ ...initialFormData, categoryId: e.target.value })}
           className="w-full border rounded p-2"
           required
         >
@@ -115,9 +116,9 @@ export default function GameForm({ categories = [] }) {
           Game Link:
           <input
             type="text"
-            value={formData.gameLink}
-            onChange={(e) => setFormData({
-              ...formData,
+            value={initialFormData.gameLink}
+            onChange={(e) => setInitialFormData({
+              ...initialFormData,
               gameLink: e.target.value
             })}
             placeholder="URL to game ROM file"
@@ -130,9 +131,9 @@ export default function GameForm({ categories = [] }) {
         <label className="block mb-2">
           Emulator Core:
           <select
-            value={formData.core}
-            onChange={(e) => setFormData({
-              ...formData,
+            value={initialFormData.core}
+            onChange={(e) => setInitialFormData({
+              ...initialFormData,
               core: e.target.value
             })}
             required

@@ -19,19 +19,21 @@ export async function POST(request) {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
 
+    // For creating games
+    const gameData = {
+      title: data.title,
+      slug: slug,
+      description: data.description,
+      image: data.image,
+      gameLink: data.gameLink,
+      core: data.core,
+      categories: {
+        connect: data.categoryId ? [{ id: data.categoryId }] : []
+      }
+    };
+
     const game = await prisma.game.create({
-      data: {
-        title: data.title.trim(),
-        slug,
-        game_url: data.game_url.trim(),
-        image: data.image?.trim() || '',
-        published: true,
-        ...(data.categoryIds?.length > 0 && {
-          categories: {
-            connect: data.categoryIds.map(id => ({ id: parseInt(id) }))
-          }
-        })
-      },
+      data: gameData,
     });
 
     return Response.json(game);

@@ -15,12 +15,12 @@ model Game {
   title       String
   slug        String      @unique
   description String?
-  image       String      // Path or URL to game thumbnail
-  gameLink    String      // URL to the actual ROM file
-  core        String      // Emulator core type (snes, nes, etc.)
+  image       String      // URL to game thumbnail
+  gameLink    String      // URL to game ROM
+  core        String      // Emulator core type
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
-  categories  Category[]  // Relation to categories
+  categories  Category[]
 }
 
 model Category {

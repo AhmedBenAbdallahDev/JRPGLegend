@@ -15,12 +15,10 @@ async function getGameCategories() {
         title: true,
         slug: true
       }
-    })
+    });
   } catch (error) {
-    console.error('Database error:', error)
+    console.error('Failed to fetch categories:', error)
     return []
-  } finally {
-    await prisma.$disconnect()
   }
 }
 
