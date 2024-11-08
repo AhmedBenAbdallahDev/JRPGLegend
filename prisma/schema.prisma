@@ -27,7 +27,7 @@ model Category {
   id        String   @id @default(cuid())
   title     String
   slug      String   @unique
-  games     Game[]   // Relation to games
+  games     Game[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
