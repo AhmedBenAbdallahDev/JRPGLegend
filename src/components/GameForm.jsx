@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function GameForm({ categories }) {
+export default function GameForm({ categories = [] }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -90,23 +90,24 @@ export default function GameForm({ categories }) {
       </div>
 
       <div>
-        <label className="block mb-2">Categories</label>
+        <label className="block">Category</label>
         <select
-          multiple
-          value={formData.categoryIds}
-          onChange={(e) => setFormData({
-            ...formData,
-            categoryIds: Array.from(e.target.selectedOptions, option => option.value)
-          })}
-          className="w-full p-3 rounded bg-primary border border-accent-secondary"
+          value={formData.categoryId}
+          onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+          className="w-full border rounded p-2"
+          required
         >
-          {categories.map(category => (
-            <option key={category.id} value={category.id}>
-              {category.title}
-            </option>
-          ))}
+          <option value="">Select a category</option>
+          {categories?.length > 0 ? (
+            categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.title}
+              </option>
+            ))
+          ) : (
+            <option value="" disabled>No categories available</option>
+          )}
         </select>
-        <p className="text-sm text-gray-400 mt-1">Hold Ctrl/Cmd to select multiple</p>
       </div>
 
       <div className="mb-4">
