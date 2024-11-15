@@ -24,10 +24,10 @@ export default async function Page({ params, searchParams }) {
           <p>No results.</p>
         ) : (
           games.map((game) => (
-            <a href={`/game/${game.slug}`} key={game.id} className='group'>
+            <a href={`${game.slug}`} key={game.id} className='group'>
               <div className='overflow-hidden rounded-lg border-accent-secondary border mb-2'>
                 <img 
-                  src={`/game/${game.image}`}
+                  src={`${game.image}`}
                   width={300}
                   height={300}
                   alt={game.title}
