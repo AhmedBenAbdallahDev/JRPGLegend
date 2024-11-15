@@ -37,7 +37,7 @@ export default async function Page() {
         <a href={`/category/${category.slug}`} key={category.id} className="group">
           <div className="overflow-hidden rounded-lg border-accent-secondary border">
             <img
-              src={`./category/${category.games[0].image}`}
+              src={`${category.games[0].image}`}
               width={300}
               height={300}
               alt={category.title}
