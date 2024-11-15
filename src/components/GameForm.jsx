@@ -6,15 +6,14 @@ export default function GameForm({ categories = [] }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const initialFormData = {
+  const [formData, setFormData] = useState({
     title: '',
-    slug: '',
     description: '',
     image: '',
     gameLink: '',
-    core: 'snes',
-    categoryId: ''
-  };
+    core: '',
+    category: { id: '', title: '' }
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,8 +27,8 @@ export default function GameForm({ categories = [] }) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ...initialFormData,
-          published: true // Auto-publish submitted games
+          ...formData,
+          published: true
         }),
       });
 
@@ -47,6 +46,31 @@ export default function GameForm({ categories = [] }) {
     }
   };
 
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleCategoryChange = (e) => {
+    const { value } = e.target;
+    const existingCategory = categories.find(cat => cat.id.toString() === value);
+    
+    if (existingCategory) {
+      setFormData(prev => ({
+        ...prev,
+        category: { id: existingCategory.id, title: existingCategory.title }
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        category: { id: '', title: value }
+      }));
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
@@ -59,8 +83,9 @@ export default function GameForm({ categories = [] }) {
         <label className="block mb-2">Game Title *</label>
         <input
           type="text"
-          value={initialFormData.title}
-          onChange={(e) => setInitialFormData({...initialFormData, title: e.target.value})}
+          name="title"
+          value={formData.title}
+          onChange={handleChange}
           className="w-full p-3 rounded bg-primary border border-accent-secondary"
           required
           placeholder="Enter game title"
@@ -68,14 +93,14 @@ export default function GameForm({ categories = [] }) {
       </div>
 
       <div>
-        <label className="block mb-2">Game URL *</label>
-        <input
-          type="url"
-          value={initialFormData.game_url}
-          onChange={(e) => setInitialFormData({...initialFormData, game_url: e.target.value})}
+        <label className="block mb-2">Description</label>
+        <textarea
+          name="description"
+          value={formData.description}
+          onChange={handleChange}
           className="w-full p-3 rounded bg-primary border border-accent-secondary"
-          required
-          placeholder="https://..."
+          rows="3"
+          placeholder="Game description"
         />
       </div>
 
@@ -83,68 +108,82 @@ export default function GameForm({ categories = [] }) {
         <label className="block mb-2">Image URL</label>
         <input
           type="text"
-          value={initialFormData.image}
-          onChange={(e) => setInitialFormData({...initialFormData, image: e.target.value})}
+          name="image"
+          value={formData.image}
+          onChange={handleChange}
           className="w-full p-3 rounded bg-primary border border-accent-secondary"
-          placeholder="Image URL (optional)"
+          placeholder="URL to game cover image"
         />
       </div>
 
       <div>
-        <label className="block">Category</label>
-        <select
-          value={initialFormData.categoryId}
-          onChange={(e) => setInitialFormData({ ...initialFormData, categoryId: e.target.value })}
-          className="w-full border rounded p-2"
-          required
-        >
-          <option value="">Select a category</option>
-          {categories?.length > 0 ? (
-            categories.map((category) => (
+        <label className="block mb-2">Category *</label>
+        <div className="flex gap-4">
+          <select
+            value={formData.category.id}
+            onChange={handleCategoryChange}
+            className="w-1/2 p-3 rounded bg-primary border border-accent-secondary"
+          >
+            <option value="">Select or type new category</option>
+            {categories.map((category) => (
               <option key={category.id} value={category.id}>
                 {category.title}
               </option>
-            ))
-          ) : (
-            <option value="" disabled>No categories available</option>
-          )}
-        </select>
-      </div>
-
-      <div className="mb-4">
-        <label className="block mb-2">
-          Game Link:
+            ))}
+          </select>
           <input
             type="text"
-            value={initialFormData.gameLink}
-            onChange={(e) => setInitialFormData({
-              ...initialFormData,
-              gameLink: e.target.value
-            })}
-            placeholder="URL to game ROM file"
-            required
+            value={formData.category.title}
+            onChange={(e) => setFormData(prev => ({
+              ...prev,
+              category: { id: '', title: e.target.value }
+            }))}
+            className="w-1/2 p-3 rounded bg-primary border border-accent-secondary"
+            placeholder="Or type new category name"
           />
-        </label>
+        </div>
       </div>
 
-      <div className="mb-4">
-        <label className="block mb-2">
-          Emulator Core:
+      <div>
+        <label className="block mb-2">Game ROM URL *</label>
+        <input
+          type="text"
+          name="gameLink"
+          value={formData.gameLink}
+          onChange={handleChange}
+          className="w-full p-3 rounded bg-primary border border-accent-secondary"
+          required
+          placeholder="URL to game ROM file"
+        />
+      </div>
+
+      <div>
+        <label className="block mb-2">Emulator Core *</label>
+        <div className="flex gap-4">
           <select
-            value={initialFormData.core}
-            onChange={(e) => setInitialFormData({
-              ...initialFormData,
-              core: e.target.value
-            })}
-            required
+            name="core"
+            value={formData.core}
+            onChange={handleChange}
+            className="w-1/2 p-3 rounded bg-primary border border-accent-secondary"
           >
+            <option value="">Select a core</option>
             <option value="snes">SNES</option>
             <option value="nes">NES</option>
             <option value="gba">Game Boy Advance</option>
             <option value="n64">Nintendo 64</option>
-            {/* Add other cores as needed */}
+            <option value="segamd">Sega Genesis</option>
+            <option value="arcade">Arcade</option>
+            <option value="psx">PlayStation</option>
           </select>
-        </label>
+          <input
+            type="text"
+            name="core"
+            value={formData.core}
+            onChange={handleChange}
+            className="w-1/2 p-3 rounded bg-primary border border-accent-secondary"
+            placeholder="Or type custom core"
+          />
+        </div>
       </div>
 
       <button
@@ -156,4 +195,4 @@ export default function GameForm({ categories = [] }) {
       </button>
     </form>
   );
-} 
+}
