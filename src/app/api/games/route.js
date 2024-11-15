@@ -1,5 +1,12 @@
 import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
+
+// PrismaClient is attached to the `global` object in development to prevent
+// exhausting your database connection limit.
+const globalForPrisma = global;
+
+const prisma = globalForPrisma.prisma || new PrismaClient();
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 export async function POST(request) {
   try {
@@ -22,52 +29,63 @@ export async function POST(request) {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
 
-    // Handle category
-    let categoryId = data.category.id;
-    
-    // If no existing category ID but has title, create new category
-    if (!categoryId && data.category.title) {
-      const newCategory = await prisma.category.create({
-        data: {
-          title: data.category.title,
-          slug: data.category.title
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/^-+|-+$/g, '')
+    try {
+      // Handle category
+      let categoryId = data.category?.id;
+      
+      // If no existing category ID but has title, create new category
+      if (!categoryId && data.category?.title) {
+        const newCategory = await prisma.category.create({
+          data: {
+            title: data.category.title,
+            slug: data.category.title
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, '-')
+              .replace(/^-+|-+$/g, '')
+          }
+        });
+        categoryId = newCategory.id;
+      }
+
+      // Create game with category connection
+      const gameData = {
+        title: data.title,
+        slug,
+        description: data.description || '',
+        image: data.image || '',
+        gameLink: data.gameLink,
+        core: data.core,
+        published: true,
+        ...(categoryId && {
+          categories: {
+            connect: [{ id: categoryId }]
+          }
+        })
+      };
+
+      const game = await prisma.game.create({
+        data: gameData,
+        include: {
+          categories: true
         }
       });
-      categoryId = newCategory.id;
+
+      return Response.json(game);
+    } catch (dbError) {
+      console.error('Database error:', dbError);
+      return Response.json(
+        { error: 'Database error: ' + dbError.message },
+        { status: 500 }
+      );
     }
-
-    // Create game with category connection
-    const gameData = {
-      title: data.title,
-      slug,
-      description: data.description || '',
-      image: data.image || '',
-      gameLink: data.gameLink,
-      core: data.core,
-      published: true,
-      ...(categoryId && {
-        categories: {
-          connect: [{ id: categoryId }]
-        }
-      })
-    };
-
-    const game = await prisma.game.create({
-      data: gameData,
-      include: {
-        categories: true
-      }
-    });
-
-    return Response.json(game);
   } catch (error) {
     console.error('Error creating game:', error);
     return Response.json(
-      { error: 'Failed to create game. Please try again.' },
+      { error: 'Failed to create game: ' + error.message },
       { status: 500 }
     );
+  } finally {
+    // Optional: Disconnect from the database
+    // await prisma.$disconnect();
   }
 }
