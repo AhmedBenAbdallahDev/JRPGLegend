@@ -3,19 +3,35 @@ import { useEffect } from 'react';
 
 export default function GameEmulator({ game }) {
   useEffect(() => {
-    // Encode the game URL to handle spaces and special characters
-    const encodedGameUrl = encodeURI(game.gameLink);
-    
-    // Use proxy for archive.org URLs
-    const gameUrl = encodedGameUrl.includes('archive.org') 
-      ? `/api/proxy?url=${encodedGameUrl}`
-      : encodedGameUrl;
+    // Function to properly encode URLs while preserving the structure
+    const encodeGameUrl = (url) => {
+      try {
+        // Split the URL into parts
+        const urlObj = new URL(url);
+        
+        // Encode each path segment separately
+        const encodedPath = urlObj.pathname.split('/')
+          .map(segment => encodeURIComponent(decodeURIComponent(segment)))
+          .join('/');
+        
+        // Reconstruct the URL with encoded path
+        urlObj.pathname = encodedPath;
+        return urlObj.toString();
+      } catch (error) {
+        console.error('URL encoding error:', error);
+        return encodeURI(url);
+      }
+    };
+
+    // Encode the game URL and route through proxy
+    const encodedGameUrl = encodeGameUrl(game.gameLink);
+    const gameUrl = `/api/proxy?url=${encodeURIComponent(encodedGameUrl)}`;
 
     // Configure EmulatorJS
     window.EJS_player = '#game';
     window.EJS_gameUrl = gameUrl;
     window.EJS_core = game.core;
-    window.EJS_pathtodata = '/emulatorjs/'; 
+    window.EJS_pathtodata = '/emulatorjs/';
     window.EJS_cors = true; // Enable CORS proxy
     window.EJS_loadStateURL = false; // Disable save state loading for external URLs
     
