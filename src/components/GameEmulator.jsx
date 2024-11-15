@@ -3,11 +3,21 @@ import { useEffect } from 'react';
 
 export default function GameEmulator({ game }) {
   useEffect(() => {
+    // Encode the game URL to handle spaces and special characters
+    const encodedGameUrl = encodeURI(game.gameLink);
+    
+    // Use proxy for archive.org URLs
+    const gameUrl = encodedGameUrl.includes('archive.org') 
+      ? `/api/proxy?url=${encodedGameUrl}`
+      : encodedGameUrl;
+
     // Configure EmulatorJS
     window.EJS_player = '#game';
-    window.EJS_gameUrl = game.gameLink; // Use the direct URL from the game object
+    window.EJS_gameUrl = gameUrl;
     window.EJS_core = game.core;
-    window.EJS_pathtodata = '/emulatorjs/'; // Path to our local EmulatorJS files
+    window.EJS_pathtodata = '/emulatorjs/'; 
+    window.EJS_cors = true; // Enable CORS proxy
+    window.EJS_loadStateURL = false; // Disable save state loading for external URLs
     
     // Load the emulator
     const script = document.createElement('script');
@@ -15,10 +25,18 @@ export default function GameEmulator({ game }) {
     script.async = true;
     document.body.appendChild(script);
 
+    // Cleanup
     return () => {
       if (script && script.parentNode) {
         script.parentNode.removeChild(script);
       }
+      // Clean up EmulatorJS
+      window.EJS_player = null;
+      window.EJS_gameUrl = null;
+      window.EJS_core = null;
+      window.EJS_pathtodata = null;
+      window.EJS_cors = null;
+      window.EJS_loadStateURL = null;
     };
   }, [game]);
 
