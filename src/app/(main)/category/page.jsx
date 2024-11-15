@@ -36,15 +36,22 @@ export default async function Page() {
       {categories.map((category) => (
         <a href={`/category/${category.slug}`} key={category.id} className="group">
           <div className="overflow-hidden rounded-lg border-accent-secondary border">
-            <img
-              src={`${category.games[0].image}`}
-              width={300}
-              height={300}
-              alt={category.title}
-              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"/>
+            {category.games && category.games.length > 0 ? (
+              <img
+                src={category.games[0].image}
+                width={300}
+                height={300}
+                alt={category.title}
+                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              />
+            ) : (
+              <div className="w-full h-full bg-accent-secondary/20 flex items-center justify-center min-h-[200px]">
+                <span className="text-accent-secondary">No games</span>
+              </div>
+            )}
           </div>
-          <h1>{category.title}</h1>
-          <p>{category.games.length} games</p>
+          <h1 className="mt-2 font-medium">{category.title}</h1>
+          <p className="text-sm text-accent-secondary">{category.games.length} games</p>
         </a>
       ))}
 
