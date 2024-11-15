@@ -263,6 +263,7 @@ class EmulatorJS {
         })();
         this.canvas = this.createElement('canvas');
         this.canvas.classList.add('ejs_canvas');
+        this.videoRotation = ([0, 1, 2, 3].includes(this.config.videoRotation)) ? this.config.videoRotation : this.preGetSetting("videoRotation") || 0;
         this.bindListeners();
         this.config.netplayUrl = this.config.netplayUrl || "https://netplay.emulatorjs.org";
         this.fullscreen = false;
@@ -782,6 +783,11 @@ class EmulatorJS {
             }
             this.textElem.innerText = this.localization("Download Game BIOS");
             const gotBios = (data) => {
+                if (this.getCore() === "same_cdi") {
+                    this.gameManager.FS.writeFile(this.config.biosUrl.split('/').pop().split("#")[0].split("?")[0], new Uint8Array(data));
+                    resolve();
+                    return;
+                }
                 this.checkCompression(new Uint8Array(data), this.localization("Decompress Game BIOS")).then((data) => {
                     for (const k in data) {
                         if (k === "!!notCompressedData") {
@@ -1078,8 +1084,8 @@ class EmulatorJS {
             let state = "suspended";
             let popup;
             while (state === "suspended") {
-                if (!window.AL) return;
-                window.AL.currentCtx.sources.forEach(ctx => {
+                if (!this.Module.AL) return;
+                this.Module.AL.currentCtx.sources.forEach(ctx => {
                     state = ctx.gain.context.state;
                 });
                 if (state !== "suspended") break;
@@ -1779,8 +1785,8 @@ class EmulatorJS {
             volumeSlider.setAttribute("aria-valuenow", volume*100);
             volumeSlider.setAttribute("aria-valuetext", (volume*100).toFixed(1) + "%");
             volumeSlider.setAttribute("style", "--value: "+volume*100+"%;margin-left: 5px;position: relative;z-index: 2;");
-            if (window.AL && AL.currentCtx && AL.currentCtx.sources) {
-                AL.currentCtx.sources.forEach(e => {
+            if (this.Module.AL && this.Module.AL.currentCtx && this.Module.AL.currentCtx.sources) {
+                this.Module.AL.currentCtx.sources.forEach(e => {
                     e.gain.gain.value = volume;
                 })
             }
@@ -4366,6 +4372,13 @@ class EmulatorJS {
                 'browser': this.localization("Keep in Browser")
             }, 'download');
         }
+
+        addToMenu(this.localization('Video Rotation (requires restart)'), 'videoRotation', {
+            '0': "0 deg",
+            '1': "90 deg",
+            '2': "180 deg",
+            '3': "270 deg"
+        }, this.videoRotation.toString());
         
         if (this.touch || navigator.maxTouchPoints > 0) {
             addToMenu(this.localization('Virtual Gamepad'), 'virtual-gamepad', {
@@ -5249,8 +5262,8 @@ class EmulatorJS {
         }
 
         let audioTrack = null;
-        if (window.AL && window.AL.currentCtx && window.AL.currentCtx.audioCtx) {
-            const alContext = window.AL.currentCtx;
+        if (this.Module.AL && this.Module.AL.currentCtx && this.Module.AL.currentCtx.audioCtx) {
+            const alContext = this.Module.AL.currentCtx;
             const audioContext = alContext.audioCtx;
 
             const gainNodes = [];
