@@ -55,7 +55,6 @@ export async function POST(request) {
         image: data.image || '',
         gameLink: data.gameLink,
         core: data.core,
-        published: true,
         ...(categoryId && {
           categories: {
             connect: [{ id: categoryId }]
