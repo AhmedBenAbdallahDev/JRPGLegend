@@ -7,8 +7,12 @@
 
 // TheGamesDB API configuration
 const TGDB_API_URL = 'https://api.thegamesdb.net/v1';
-const TGDB_API_KEY = process.env.TGDB_API_KEY || 'is26c28c263fbe921c94dd6902a900f53e4a88df9e1ab7146d07f5ca35d1c228fc';
+// Access the API key from environment variables
+const TGDB_API_KEY = process.env.TGDB_API_KEY;
 const TGDB_IMAGE_BASE_URL = 'https://cdn.thegamesdb.net/images/';
+
+// Check if API key is available
+const hasValidApiKey = !!TGDB_API_KEY;
 
 /**
  * Search for a game in TheGamesDB
@@ -19,6 +23,12 @@ const TGDB_IMAGE_BASE_URL = 'https://cdn.thegamesdb.net/images/';
  */
 export async function searchGame(gameName, platform) {
   try {
+    // Check if we have a valid API key
+    if (!hasValidApiKey) {
+      console.warn('Missing TheGamesDB API key. Please set TGDB_API_KEY in your environment variables.');
+      return null;
+    }
+    
     // Map EmulatorJS cores to TheGamesDB platform IDs
     const platformId = getPlatformId(platform);
     
@@ -78,6 +88,11 @@ export function getPlatformId(core) {
  */
 export async function getGameImages(gameId) {
   try {
+    // Check if we have a valid API key
+    if (!hasValidApiKey) {
+      return null;
+    }
+    
     const url = `${TGDB_API_URL}/Games/Images?apikey=${TGDB_API_KEY}&games_id=${gameId}`;
     
     const response = await fetch(url);
@@ -102,6 +117,11 @@ export async function getGameImages(gameId) {
  */
 export async function getGameCoverUrl(gameName, core) {
   try {
+    // Check if we have a valid API key
+    if (!hasValidApiKey) {
+      return null;
+    }
+    
     // Search for the game
     const searchData = await searchGame(gameName, core);
     
