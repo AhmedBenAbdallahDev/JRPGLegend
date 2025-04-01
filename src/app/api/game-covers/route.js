@@ -1,5 +1,5 @@
 import { getGameCoverUrl as getScreenscraperCoverUrl } from '@/lib/screenscraper';
-import { getGameCoverUrl as getTGDBCoverUrl } from '@/lib/thegamesdb';
+import { getGameCoverUrl as getTGDBData } from '@/lib/thegamesdb';
 import { NextResponse } from 'next/server';
 
 /**
@@ -34,11 +34,21 @@ export async function GET(request) {
     if (source === 'screenscraper') {
       coverUrl = await getScreenscraperCoverUrl(gameName, core);
     } else if (source === 'tgdb') {
-      coverUrl = await getTGDBCoverUrl(gameName, core);
+      // For TheGamesDB, we get both metadata and cover URL
+      const tgdbData = await getTGDBData(gameName, core);
+      if (tgdbData) {
+        coverUrl = tgdbData.coverUrl;
+      }
     } else {
       // Try both sources if unspecified or invalid
-      coverUrl = await getTGDBCoverUrl(gameName, core) || 
-                 await getScreenscraperCoverUrl(gameName, core);
+      const tgdbData = await getTGDBData(gameName, core);
+      if (tgdbData) {
+        coverUrl = tgdbData.coverUrl;
+      }
+      
+      if (!coverUrl) {
+        coverUrl = await getScreenscraperCoverUrl(gameName, core);
+      }
     }
     
     if (!coverUrl) {

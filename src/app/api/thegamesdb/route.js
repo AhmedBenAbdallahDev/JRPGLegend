@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { searchGame, getGameImages, getGameCoverUrl } from '@/lib/thegamesdb';
+import { getGameCoverUrl } from '@/lib/thegamesdb';
 import { getGameMetadata as getScreenscraperMetadata } from '@/lib/screenscraper';
 
 export async function GET(request) {
@@ -27,32 +27,17 @@ export async function GET(request) {
       return getFallbackResponse(request, name, core, metadataOnly, headers);
     }
 
-    // Search for the game
-    const searchData = await searchGame(name, core);
+    // Get game data from TheGamesDB (both metadata and cover URL in one call)
+    const gameData = await getGameCoverUrl(name, core);
     
-    if (!searchData || !searchData.data || !searchData.data.games || searchData.data.games.length === 0) {
+    if (!gameData) {
       // Fallback to ScreenScraper if no results found
+      console.log(`No data found in TheGamesDB for ${name} on platform ${core}, falling back to ScreenScraper`);
       return getFallbackResponse(request, name, core, metadataOnly, headers);
     }
     
-    // Get the first game result
-    const game = searchData.data.games[0];
-    const gameId = game.id;
-    
-    // Get metadata
-    const metadata = {
-      title: game.game_title,
-      description: game.overview || null,
-      releaseDate: game.release_date || null,
-      developer: game.developers?.[0] || null,
-      publisher: game.publishers?.[0] || null,
-      genre: game.genres?.join(', ') || null,
-      players: game.players || null,
-      rating: game.rating || null,
-      platformId: game.platform,
-      gameId: game.id,
-      source: 'thegamesdb'
-    };
+    // Extract metadata and coverUrl
+    const { metadata, coverUrl } = gameData;
     
     // For metadata-only requests, we can return early
     if (metadataOnly) {
@@ -61,9 +46,6 @@ export async function GET(request) {
         { status: 200, headers }
       );
     }
-    
-    // Otherwise get the cover image
-    const coverUrl = await getGameCoverUrl(name, core);
     
     // Return the full response
     return NextResponse.json(
