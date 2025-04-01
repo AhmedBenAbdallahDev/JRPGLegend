@@ -8,7 +8,11 @@
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
-    "seed": "node prisma/seed.js"
+    "seed": "node prisma/seed.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:push": "prisma db push",
+    "prisma:studio": "prisma studio"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
@@ -16,7 +20,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.666.0",
     "@heroicons/react": "^2.1.5",
-    "@prisma/client": "^5.20.0",
+    "@prisma/client": "^5.22.0",
     "bcryptjs": "^2.4.3",
     "disqus-react": "^1.1.5",
     "next": "^14.2.14",
@@ -24,11 +28,12 @@
     "prop-types": "^15.8.1",
     "react": "^18",
     "react-dom": "^18",
+    "react-icons": "^5.5.0",
     "swiper": "^11.1.12"
   },
   "devDependencies": {
     "postcss": "^8",
-    "prisma": "^5.20.0",
+    "prisma": "^5.22.0",
     "tailwindcss": "^3.4.1"
   }
 }

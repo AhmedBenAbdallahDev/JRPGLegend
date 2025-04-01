@@ -1,6 +1,6 @@
 import Header from "@/components/Admin/Header"
 import { getGameCategories } from "@/lib/adminQueries"
-import GameForm from "@/app/(admin)/dashboard/game/(form)/form"
+import GameFormWithScreenscraper from "@/components/GameForm"
 
 export default async function Page() {
   const categories = await getGameCategories();
@@ -15,7 +15,7 @@ export default async function Page() {
           <h1 className="font-display">Add New Game</h1>
         </div>
 
-        <GameForm categories={categories} />
+        <GameFormWithScreenscraper categories={categories} />
 
       </div>
 

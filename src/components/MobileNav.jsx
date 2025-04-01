@@ -4,6 +4,7 @@ import {
   XMarkIcon,
   HomeIcon,
   CubeIcon,
+  DeviceTabletIcon,
 } from "@heroicons/react/24/outline";
 import { useState } from "react";
 
@@ -22,6 +23,12 @@ export default function MobileNav() {
       path: "/new-games",
       icon: CubeIcon,
       slug: "new-games",
+    },
+    {
+      name: "Platforms",
+      path: "/platforms",
+      icon: DeviceTabletIcon,
+      slug: "platforms",
     },
     {
       name: "Categories",

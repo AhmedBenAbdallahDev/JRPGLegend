@@ -1,6 +1,8 @@
 "use client";
-import { HomeIcon, CubeIcon } from "@heroicons/react/24/outline";
+import { HomeIcon, CubeIcon, DeviceTabletIcon } from "@heroicons/react/24/outline";
 import { usePathname } from "next/navigation";
+import { SiNintendo, SiPlaystation, SiSega } from 'react-icons/si';
+import { FaGamepad, FaMobileAlt } from 'react-icons/fa';
 
 export default function SideBarNav({ categoryMenu }) {
   const activeSegment = usePathname();
@@ -16,7 +18,47 @@ export default function SideBarNav({ categoryMenu }) {
       icon: CubeIcon,
       slug: "/new-games",
     },
+    {
+      name: "Platforms",
+      icon: DeviceTabletIcon,
+      slug: "/platforms",
+    },
+    {
+      name: "ScreenScraper Demo",
+      icon: CubeIcon,
+      slug: "/screenscraper-demo",
+    },
   ];
+
+  // Function to get the appropriate icon for each platform category
+  const getCategoryIcon = (slug) => {
+    const iconSize = 24;
+    
+    switch (slug) {
+      case 'nes':
+      case 'snes':
+        return <SiNintendo size={iconSize} />;
+      case 'n64':
+        return <SiNintendo size={iconSize} />;
+      case 'gb':
+      case 'gbc':
+      case 'gba':
+        return <FaMobileAlt size={iconSize} />;
+      case 'nds':
+        return <SiNintendo size={iconSize} />;
+      case 'genesis':
+      case 'segacd':
+      case 'saturn':
+        return <SiSega size={iconSize} />;
+      case 'psx':
+      case 'psp':
+        return <SiPlaystation size={iconSize} />;
+      case 'arcade':
+        return <FaGamepad size={iconSize} />;
+      default:
+        return <FaGamepad size={iconSize} />;
+    }
+  };
 
   return (
     <>
@@ -32,7 +74,7 @@ export default function SideBarNav({ categoryMenu }) {
                   : "incative hover:bg-primary rounded-md"
               }`}
             >
-              <item.icon className="size-6 text-accent" />
+              <item.icon className="h-6 w-6 text-accent" />
               {item.name}
             </a>
           </li>
@@ -41,7 +83,7 @@ export default function SideBarNav({ categoryMenu }) {
 
       <div className="text-accent text-xs mb-2">CATEGORIES</div>
       <ul className="bg-muted flex flex-col gap-2 mb-6">
-        {categoryMenu.map((item) => (
+        {categoryMenu && categoryMenu.map((item) => (
           <li key={item.id}>
             <a
               href={`/category/${item.slug}`}
@@ -51,7 +93,9 @@ export default function SideBarNav({ categoryMenu }) {
                   : "incative hover:bg-primary rounded-md"
               }`}
             >
-              <div className={`categoryicon ${item.slug}`}></div>
+              <div className="text-accent">
+                {getCategoryIcon(item.slug)}
+              </div>
               {item.title}{" "}
               <span className="text-accent">({item?.games?.length})</span>
             </a>

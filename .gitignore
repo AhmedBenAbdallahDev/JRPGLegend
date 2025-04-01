@@ -35,3 +35,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# game roms and lists
+/games-list/
+
+# ROMs list directory
+/games-list

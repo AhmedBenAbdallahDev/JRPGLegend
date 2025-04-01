@@ -1,11 +1,12 @@
 "use client";
 import { Swiper, SwiperSlide } from "swiper/react";
-import { Navigation, Pagination, Scrollbar, A11y } from "swiper/modules";
+import { Navigation, Scrollbar, A11y } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
 import { ChevronRightIcon } from "@heroicons/react/24/outline";
-import Image from "next/image";
+import { SiNintendo, SiPlaystation, SiSega } from 'react-icons/si';
+import { FaGamepad, FaMobileAlt } from 'react-icons/fa';
 
 export default function CategorySlider({ categories }) {
   if (!categories || !Array.isArray(categories)) {
@@ -24,12 +25,74 @@ export default function CategorySlider({ categories }) {
     },
   };
 
+  // Function to get the appropriate icon for each platform
+  const getPlatformIcon = (slug) => {
+    const iconSize = 40;
+    
+    switch (slug) {
+      case 'nes':
+        return <SiNintendo size={iconSize} />;
+      case 'snes':
+        return <SiNintendo size={iconSize} />;
+      case 'n64':
+        return <SiNintendo size={iconSize} />;
+      case 'gb':
+      case 'gbc':
+      case 'gba':
+        return <FaMobileAlt size={iconSize} />;
+      case 'nds':
+        return <SiNintendo size={iconSize} />;
+      case 'genesis':
+      case 'segacd':
+      case 'saturn':
+        return <SiSega size={iconSize} />;
+      case 'psx':
+      case 'psp':
+        return <SiPlaystation size={iconSize} />;
+      case 'arcade':
+        return <FaGamepad size={iconSize} />;
+      default:
+        return <FaGamepad size={iconSize} />;
+    }
+  };
+
+  // Platform-specific styling
+  const getPlatformColors = (slug) => {
+    const platformStyles = {
+      // Nintendo platforms
+      'nes': 'bg-red-600',
+      'snes': 'bg-purple-600',
+      'n64': 'bg-green-600',
+      'gb': 'bg-gray-600',
+      'gbc': 'bg-yellow-500',
+      'gba': 'bg-indigo-600',
+      'nds': 'bg-blue-500',
+      
+      // Sega platforms
+      'genesis': 'bg-red-700',
+      'segacd': 'bg-red-800',
+      'saturn': 'bg-gray-700',
+      
+      // Sony platforms
+      'psx': 'bg-gray-800',
+      'psp': 'bg-black',
+      
+      // Other platforms
+      'arcade': 'bg-purple-800',
+      
+      // Default
+      'default': 'bg-gray-600'
+    };
+    
+    return platformStyles[slug] || platformStyles.default;
+  };
+
   return (
     <div className="mb-6">
       <div className="flex justify-between gap-4">
         <h2 className="font-display mb-4 items-center">Categories</h2>
         <a
-          href="/category"
+          href="/platforms"
           className="text-sm font-medium hover:underline underline-offset-4"
         >
           View All{" "}
@@ -55,20 +118,17 @@ export default function CategorySlider({ categories }) {
           "--swiper-navigation-sides-offset": "30px",
         }}
       >
-        {categories.map((item, i) => (
-          item && item.title && (
-            <SwiperSlide key={i} className="group">
-              <a href={`/category/${item.slug}`} className="group">
-                <div className="overflow-hidden rounded-lg border-accent-secondary border mb-2">
-                  <Image
-                    src={`/category/${item.image || 'default-image.png'}`}
-                    width={300}
-                    height={300}
-                    alt={item.title}
-                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  />
+        {categories.map((category) => (
+          category && category.title && (
+            <SwiperSlide key={category.id} className="group">
+              <a href={`/category/${category.slug}`} className="group">
+                <div className={`overflow-hidden rounded-lg ${getPlatformColors(category.slug)} aspect-square flex items-center justify-center mb-2`}>
+                  {getPlatformIcon(category.slug)}
                 </div>
-                <h1>{item.title}</h1>
+                <h1 className="text-center text-sm mt-2">{category.title}</h1>
+                {category.games && (
+                  <p className="text-xs text-center text-accent">{category.games.length} games</p>
+                )}
               </a>
             </SwiperSlide>
           )

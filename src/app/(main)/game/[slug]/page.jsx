@@ -2,6 +2,8 @@ import { getGameBySlug } from "@/lib/gameQueries";
 import GameEmulator from "@/components/GameEmulator";
 import Disqus from "@/components/Disqus";
 import { Suspense } from "react";
+import { SiNintendo, SiPlaystation, SiSega } from 'react-icons/si';
+import { FaGamepad, FaMobileAlt } from 'react-icons/fa';
 
 export async function generateMetadata({ params }) {
   const game = await getGameBySlug(params.slug);
@@ -13,6 +15,38 @@ export async function generateMetadata({ params }) {
     description,
   };
 }
+
+// Function to get the appropriate icon for each platform category
+const getCategoryIcon = (slug) => {
+  const iconSize = 20;
+  
+  if (!slug) return <FaGamepad size={iconSize} />;
+  
+  switch (slug) {
+    case 'nes':
+    case 'snes':
+      return <SiNintendo size={iconSize} />;
+    case 'n64':
+      return <SiNintendo size={iconSize} />;
+    case 'gb':
+    case 'gbc':
+    case 'gba':
+      return <FaMobileAlt size={iconSize} />;
+    case 'nds':
+      return <SiNintendo size={iconSize} />;
+    case 'genesis':
+    case 'segacd':
+    case 'saturn':
+      return <SiSega size={iconSize} />;
+    case 'psx':
+    case 'psp':
+      return <SiPlaystation size={iconSize} />;
+    case 'arcade':
+      return <FaGamepad size={iconSize} />;
+    default:
+      return <FaGamepad size={iconSize} />;
+  }
+};
 
 export default async function Page({ params }) {
   const game = await getGameBySlug(params.slug);
@@ -39,8 +73,9 @@ export default async function Page({ params }) {
           <li>
             <a 
               href={`/category/${game?.categories[0]?.slug}`} 
-              className="hover:text-accent"
+              className="hover:text-accent flex items-center gap-1"
             >
+              {getCategoryIcon(game?.categories[0]?.slug)}
               {game?.categories[0]?.title}
             </a>
           </li>
@@ -54,6 +89,13 @@ export default async function Page({ params }) {
       </nav>
 
       <div className="max-w-4xl mx-auto">
+        <h1 className="text-2xl font-bold mb-4 flex items-center gap-2">
+          {game?.title}
+          <span className="text-accent">
+            {getCategoryIcon(game?.categories[0]?.slug)}
+          </span>
+        </h1>
+        
         <GameEmulator game={game} />
       </div>
 

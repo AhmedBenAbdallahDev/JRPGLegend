@@ -16,24 +16,63 @@
 .categoryicon {
   width: 24px;
   height: 24px;
-  background-repeat: no-repeat;
+  background-size: contain;
   background-position: center;
-  background-image: url('/icons/default.svg');
+  background-repeat: no-repeat;
+}
 
-  &.arcade {
-    background-image: url('/icons/arcade.svg');
-  }
+/* Nintendo Systems */
+.categoryicon.nes {
+  background-image: url('/platform-icons/nes.png');
+}
 
-  &.atari {
-    background-image: url('/icons/arcade.svg');
-  }
+.categoryicon.snes {
+  background-image: url('/platform-icons/snes.png');
+}
 
-  &.mame-2003 {
-    background-image: url('/icons/arcade.svg');
-  }
+.categoryicon.n64 {
+  background-image: url('/platform-icons/n64.png');
+}
 
-  &.nes {
-    background-image: url('/icons/arcade.svg');
-  }
+.categoryicon.gb {
+  background-image: url('/platform-icons/gb.png');
+}
 
+.categoryicon.gbc {
+  background-image: url('/platform-icons/gbc.png');
+}
+
+.categoryicon.gba {
+  background-image: url('/platform-icons/gba.png');
+}
+
+.categoryicon.nds {
+  background-image: url('/platform-icons/nds.png');
+}
+
+/* Sega Systems */
+.categoryicon.genesis {
+  background-image: url('/platform-icons/genesis.png');
+}
+
+.categoryicon.segacd {
+  background-image: url('/platform-icons/segacd.png');
+}
+
+.categoryicon.saturn {
+  background-image: url('/platform-icons/saturn.png');
+}
+
+/* Sony Systems */
+.categoryicon.psx {
+  background-image: url('/platform-icons/psx.png');
+}
+
+.categoryicon.psp {
+  background-image: url('/platform-icons/psp.png');
+}
+
+/* Other Systems */
+.categoryicon.arcade {
+  background-image: url('/platform-icons/arcade.png');
 }

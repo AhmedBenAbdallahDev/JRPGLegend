@@ -146,7 +146,7 @@ export async function getGameCategories() {
         id: true,
         title: true,
         slug: true,
-        image: true
+        games: true
       }
     });
 
@@ -172,4 +172,30 @@ export async function getSearchResults(params) {
     },
     take: 100,
   });
+}
+
+/**
+ * Gets a category by its slug, including its games
+ * 
+ * @param {string} slug - The category slug
+ * @returns {Promise<Object>} - The category with games
+ */
+export async function getCategoryBySlug(slug) {
+  return handlePrismaOperation(async () => {
+    const category = await prisma.category.findUnique({
+      where: {
+        slug: slug
+      },
+      include: {
+        games: {
+          take: 8, // Limit to 8 games for display purposes
+          orderBy: {
+            createdAt: 'desc' // Show newest games first
+          }
+        }
+      }
+    });
+
+    return category;
+  }, 'getCategoryBySlug');
 }

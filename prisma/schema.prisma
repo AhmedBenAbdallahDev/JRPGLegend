@@ -8,25 +8,28 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 model Game {
-  id        Int      @id @default(autoincrement())
-  title     String
-  slug      String   @unique
-  game_url  String?
-  image     String?
-  published Boolean  @default(false)
-  categories Category[]
+  id          String      @id @default(cuid())
+  title       String
+  slug        String      @unique
+  description String?
+  image       String      // URL to game thumbnail
+  gameLink    String      // URL to game ROM
+  core        String      // Emulator core type
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  categories  Category[]
 }
 
 model Category {
-  id        Int      @id @default(autoincrement())
+  id        String   @id @default(cuid())
   title     String
   slug      String   @unique
-  image     String?
   games     Game[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model User {
