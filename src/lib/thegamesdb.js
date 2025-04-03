@@ -491,12 +491,48 @@ export async function getGameCoverUrl(gameName, core) {
     let imagesUrl = new URL(`${TGDB_API_URL}/Games/Images`);
     imagesUrl.searchParams.append('apikey', TGDB_API_KEY);
     imagesUrl.searchParams.append('games_id', gameId);
-    imagesUrl.searchParams.append('filter[type]', 'boxart,screenshot,clearlogo,titlescreen,fanart');
+    
+    // IMPORTANT: Explicitly request boxart as the primary image type, with fallbacks if needed
+    imagesUrl.searchParams.append('filter[type]', 'boxart');
+    
+    logTGDB('GetCover', `Requesting image URL: ${imagesUrl.toString().replace(TGDB_API_KEY, 'REDACTED')}`);
     
     const imagesResponse = await fetchWithTimeout(imagesUrl.toString(), {}, 15000);
     
     if (!imagesResponse.ok) {
       logTGDB('GetCover', `Failed to fetch images: ${imagesResponse.status}`, null, true);
+      
+      // If boxart-only request failed, try with more image types
+      if (imagesResponse.status === 404) {
+        logTGDB('GetCover', 'No boxart found, trying alternative image types');
+        
+        // Create new URL with broader image types
+        let fallbackUrl = new URL(`${TGDB_API_URL}/Games/Images`);
+        fallbackUrl.searchParams.append('apikey', TGDB_API_KEY);
+        fallbackUrl.searchParams.append('games_id', gameId);
+        fallbackUrl.searchParams.append('filter[type]', 'screenshot,clearlogo,titlescreen,fanart');
+        
+        const fallbackResponse = await fetchWithTimeout(fallbackUrl.toString(), {}, 15000);
+        
+        if (!fallbackResponse.ok) {
+          logTGDB('GetCover', `Fallback image request also failed: ${fallbackResponse.status}`, null, true);
+          return null;
+        }
+        
+        const fallbackData = await fallbackResponse.json();
+        
+        if (fallbackData.code !== 200 || fallbackData.status !== 'Success' || 
+            !fallbackData.data?.images || !fallbackData.data.images[gameId] || 
+            fallbackData.data.images[gameId].length === 0) {
+          logTGDB('GetCover', 'No fallback images found', null, true);
+          return null;
+        }
+        
+        // Use the fallback data for further processing
+        logTGDB('GetCover', 'Using fallback image types');
+        return processTGDBImages(fallbackData, gameId, gameTitle);
+      }
+      
       return null;
     }
     
@@ -507,114 +543,122 @@ export async function getGameCoverUrl(gameName, core) {
       return null;
     }
     
-    // Check if we have images for this game
-    if (!imagesData.data?.images || !imagesData.data.images[gameId] || imagesData.data.images[gameId].length === 0) {
-      logTGDB('GetCover', `No images found for game ID: ${gameId}`, null, true);
-      return null;
-    }
+    return processTGDBImages(imagesData, gameId, gameTitle);
     
-    const images = imagesData.data.images[gameId];
-    logTGDB('GetCover', `Found ${images.length} images for game ID: ${gameId}`);
-    
-    // Get the base URLs from the response
-    // IMPORTANT: TheGamesDB returns different size options, we should use the appropriate one
-    const baseUrls = imagesData.data.base_url;
-    
-    if (!baseUrls || !baseUrls.original) {
-      logTGDB('GetCover', 'Missing base URL in API response, using default', null, true);
-    }
-    
-    // Log all available base URLs for debugging
-    logTGDB('GetCover', 'Available base URLs:', baseUrls);
-    
-    // Default to original size, but we could offer other sizes if needed
-    const baseUrl = baseUrls?.original || TGDB_IMAGE_BASE_URL;
-    logTGDB('GetCover', `Using image base URL: ${baseUrl}`);
-    
-    // Image type preference order 
-    const imageTypePreference = [
-      { type: 'boxart', side: 'front' }, // Front boxart is highest priority
-      { type: 'boxart', side: null },    // Any boxart is next
-      { type: 'screenshot', side: null },// Screenshots
-      { type: 'clearlogo', side: null }, // Game logos
-      { type: 'titlescreen', side: null },// Title screens
-      { type: 'fanart', side: null }     // Fan art last resort
-    ];
-    
-    // Find the best image according to our preference
-    let bestImage = null;
-    
-    // Find the first image that matches our preference order
-    for (const preference of imageTypePreference) {
-      if (preference.side) {
-        bestImage = images.find(img => 
-          img.type === preference.type && img.side === preference.side);
-      } else {
-        bestImage = images.find(img => img.type === preference.type);
-      }
-      
-      if (bestImage) {
-        const typeStr = preference.side 
-          ? `${preference.type} (${preference.side})`
-          : preference.type;
-        logTGDB('GetCover', `Selected image type: ${typeStr}`);
-        logTGDB('GetCover', 'Image details:', bestImage);
-        break;
-      }
-    }
-    
-    // If we found a suitable image, construct the URL
-    if (bestImage && bestImage.filename) {
-      // IMPORTANT: Make sure the URL is properly constructed
-      // Some APIs return full URLs, others return relative paths
-      let coverUrl;
-      
-      if (bestImage.filename.startsWith('http')) {
-        // It's already a full URL
-        coverUrl = bestImage.filename;
-      } else {
-        // It's a relative path, need to combine with base URL
-        // Ensure there's no double slash between baseUrl and filename
-        const baseUrlFixed = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
-        const filenameFixed = bestImage.filename.startsWith('/') 
-          ? bestImage.filename.substring(1) 
-          : bestImage.filename;
-        
-        coverUrl = baseUrlFixed + filenameFixed;
-      }
-      
-      logTGDB('GetCover', `Constructed cover URL: ${coverUrl}`);
-      return { coverUrl, gameTitle };
-    } else {
-      // Last resort - use the first image of any type
-      if (images.length > 0 && images[0].filename) {
-        const firstImage = images[0];
-        logTGDB('GetCover', 'Using first available image as fallback:', firstImage);
-        
-        // Same URL construction logic as above
-        let fallbackUrl;
-        
-        if (firstImage.filename.startsWith('http')) {
-          fallbackUrl = firstImage.filename;
-        } else {
-          const baseUrlFixed = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
-          const filenameFixed = firstImage.filename.startsWith('/') 
-            ? firstImage.filename.substring(1) 
-            : firstImage.filename;
-          
-          fallbackUrl = baseUrlFixed + filenameFixed;
-        }
-        
-        logTGDB('GetCover', `Using fallback image URL: ${fallbackUrl}`);
-        return { coverUrl: fallbackUrl, gameTitle };
-      }
-      
-      logTGDB('GetCover', `No suitable image found for game ID: ${gameId}`, null, true);
-    }
-    
-    return null;
   } catch (error) {
     logTGDB('GetCover', `Error processing "${gameName}" (${core})`, error, true);
     throw error;
   }
+}
+
+/**
+ * Helper function to process TheGamesDB image data and extract the best image URL
+ */
+function processTGDBImages(imagesData, gameId, gameTitle) {
+  // Check if we have images for this game
+  if (!imagesData.data?.images || !imagesData.data.images[gameId] || imagesData.data.images[gameId].length === 0) {
+    logTGDB('ProcessImages', `No images found for game ID: ${gameId}`, null, true);
+    return null;
+  }
+  
+  const images = imagesData.data.images[gameId];
+  logTGDB('ProcessImages', `Found ${images.length} images for game ID: ${gameId}`);
+  
+  // Get the base URLs from the response
+  // IMPORTANT: TheGamesDB returns different size options, we should use the appropriate one
+  const baseUrls = imagesData.data.base_url;
+  
+  if (!baseUrls || !baseUrls.original) {
+    logTGDB('ProcessImages', 'Missing base URL in API response, using default', null, true);
+  }
+  
+  // Log all available base URLs for debugging
+  logTGDB('ProcessImages', 'Available base URLs:', baseUrls);
+  
+  // Default to original size, but we could offer other sizes if needed
+  const baseUrl = baseUrls?.original || TGDB_IMAGE_BASE_URL;
+  logTGDB('ProcessImages', `Using image base URL: ${baseUrl}`);
+  
+  // Image type preference order 
+  const imageTypePreference = [
+    { type: 'boxart', side: 'front' }, // Front boxart is highest priority
+    { type: 'boxart', side: null },    // Any boxart is next
+    { type: 'screenshot', side: null },// Screenshots
+    { type: 'clearlogo', side: null }, // Game logos
+    { type: 'titlescreen', side: null },// Title screens
+    { type: 'fanart', side: null }     // Fan art last resort
+  ];
+  
+  // Find the best image according to our preference
+  let bestImage = null;
+  
+  // Find the first image that matches our preference order
+  for (const preference of imageTypePreference) {
+    if (preference.side) {
+      bestImage = images.find(img => 
+        img.type === preference.type && img.side === preference.side);
+    } else {
+      bestImage = images.find(img => img.type === preference.type);
+    }
+    
+    if (bestImage) {
+      const typeStr = preference.side 
+        ? `${preference.type} (${preference.side})`
+        : preference.type;
+      logTGDB('ProcessImages', `Selected image type: ${typeStr}`);
+      logTGDB('ProcessImages', 'Image details:', bestImage);
+      break;
+    }
+  }
+  
+  // If we found a suitable image, construct the URL
+  if (bestImage && bestImage.filename) {
+    // IMPORTANT: Make sure the URL is properly constructed
+    // Some APIs return full URLs, others return relative paths
+    let coverUrl;
+    
+    if (bestImage.filename.startsWith('http')) {
+      // It's already a full URL
+      coverUrl = bestImage.filename;
+    } else {
+      // It's a relative path, need to combine with base URL
+      // Ensure there's no double slash between baseUrl and filename
+      const baseUrlFixed = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
+      const filenameFixed = bestImage.filename.startsWith('/') 
+        ? bestImage.filename.substring(1) 
+        : bestImage.filename;
+      
+      coverUrl = baseUrlFixed + filenameFixed;
+    }
+    
+    logTGDB('ProcessImages', `Constructed cover URL: ${coverUrl}`);
+    return { coverUrl, gameTitle };
+  } else {
+    // Last resort - use the first image of any type
+    if (images.length > 0 && images[0].filename) {
+      const firstImage = images[0];
+      logTGDB('ProcessImages', 'Using first available image as fallback:', firstImage);
+      
+      // Same URL construction logic as above
+      let fallbackUrl;
+      
+      if (firstImage.filename.startsWith('http')) {
+        fallbackUrl = firstImage.filename;
+      } else {
+        const baseUrlFixed = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
+        const filenameFixed = firstImage.filename.startsWith('/') 
+          ? firstImage.filename.substring(1) 
+          : firstImage.filename;
+        
+        fallbackUrl = baseUrlFixed + filenameFixed;
+      }
+      
+      logTGDB('ProcessImages', `Using fallback image URL: ${fallbackUrl}`);
+      return { coverUrl: fallbackUrl, gameTitle };
+    }
+    
+    logTGDB('ProcessImages', `No suitable image found for game ID: ${gameId}`, null, true);
+  }
+  
+  return null;
 } 
