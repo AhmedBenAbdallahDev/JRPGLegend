@@ -68,6 +68,7 @@ export async function GET(request) {
     // Fetch cover URL from the specified source
     let coverUrl = null;
     let usedSource = source;
+    let gameTitle = null;
     
     try {
       if (source === 'screenscraper') {
@@ -75,19 +76,21 @@ export async function GET(request) {
         const isAvailable = await checkAPIAvailability('screenscraper');
         if (!isAvailable) {
           console.warn('ScreenScraper API is unavailable, falling back to TheGamesDB');
-          const tgdbData = await fetchWithTimeout(getTGDBData(gameName, core));
-          if (tgdbData) {
-            coverUrl = tgdbData.coverUrl;
+          const tgdbResult = await fetchWithTimeout(getTGDBData(gameName, core));
+          if (tgdbResult) {
+            coverUrl = tgdbResult.coverUrl;
             usedSource = 'tgdb';
+            gameTitle = tgdbResult.gameTitle || gameName;
           }
         } else {
           coverUrl = await fetchWithTimeout(getScreenscraperCoverUrl(gameName, core));
         }
       } else if (source === 'tgdb') {
-        // For TheGamesDB, we get both metadata and cover URL
-        const tgdbData = await fetchWithTimeout(getTGDBData(gameName, core));
-        if (tgdbData) {
-          coverUrl = tgdbData.coverUrl;
+        // For TheGamesDB, we get both metadata and cover URL in an object
+        const tgdbResult = await fetchWithTimeout(getTGDBData(gameName, core));
+        if (tgdbResult) {
+          coverUrl = tgdbResult.coverUrl;
+          gameTitle = tgdbResult.gameTitle || gameName;
         }
       } else if (source === 'auto') {
         // Try ScreenScraper first, check if it's available
@@ -101,9 +104,10 @@ export async function GET(request) {
             console.error('Error with ScreenScraper, falling back to TGDB:', err);
             
             try {
-              const tgdbData = await fetchWithTimeout(getTGDBData(gameName, core), 15000);
-              if (tgdbData) {
-                coverUrl = tgdbData.coverUrl;
+              const tgdbResult = await fetchWithTimeout(getTGDBData(gameName, core), 15000);
+              if (tgdbResult) {
+                coverUrl = tgdbResult.coverUrl;
+                gameTitle = tgdbResult.gameTitle || gameName;
                 usedSource = 'tgdb';
               }
             } catch (tgdbErr) {
@@ -114,9 +118,10 @@ export async function GET(request) {
         } else {
           // ScreenScraper not available, try TGDB directly
           console.warn('ScreenScraper unavailable, trying TGDB directly');
-          const tgdbData = await fetchWithTimeout(getTGDBData(gameName, core), 15000);
-          if (tgdbData) {
-            coverUrl = tgdbData.coverUrl;
+          const tgdbResult = await fetchWithTimeout(getTGDBData(gameName, core), 15000);
+          if (tgdbResult) {
+            coverUrl = tgdbResult.coverUrl;
+            gameTitle = tgdbResult.gameTitle || gameName;
             usedSource = 'tgdb';
           }
         }
@@ -148,6 +153,7 @@ export async function GET(request) {
         success: true, 
         coverUrl,
         source: usedSource,
+        gameTitle: gameTitle || gameName,
         cached: true,
         expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
       },

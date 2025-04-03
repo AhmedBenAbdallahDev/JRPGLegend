@@ -125,7 +125,7 @@ export default function EnhancedGameCover({
       
       // Create an AbortController for timeout
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
       
       try {
         const response = await fetch(
@@ -149,6 +149,7 @@ export default function EnhancedGameCover({
             if (typeof window !== 'undefined') {
               const cacheData = {
                 url: data.coverUrl,
+                title: data.gameTitle || gameTitle,
                 timestamp: Date.now()
               };
               localStorage.setItem(`cover_${reference}`, JSON.stringify(cacheData));
@@ -222,7 +223,7 @@ export default function EnhancedGameCover({
       
       // Create an AbortController for timeout
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
       
       try {
         const response = await fetch(
@@ -246,6 +247,7 @@ export default function EnhancedGameCover({
             if (typeof window !== 'undefined') {
               const cacheData = {
                 url: data.coverUrl,
+                title: data.gameTitle || gameTitle,
                 timestamp: Date.now()
               };
               localStorage.setItem(`cover_${reference}`, JSON.stringify(cacheData));
@@ -318,7 +320,7 @@ export default function EnhancedGameCover({
     try {
       // Create an AbortController for timeout
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
       
       try {
         const response = await fetch(
@@ -342,6 +344,8 @@ export default function EnhancedGameCover({
             if (typeof window !== 'undefined') {
               const cacheData = {
                 url: data.coverUrl,
+                title: data.gameTitle || game.title,
+                source: data.source || preferredSource,
                 timestamp: Date.now()
               };
               localStorage.setItem(`cover_${cacheKey}`, JSON.stringify(cacheData));
@@ -355,7 +359,7 @@ export default function EnhancedGameCover({
         }
       } catch (fetchError) {
         if (fetchError.name === 'AbortError') {
-          throw new Error('Request timed out. The ScreenScraper API may be unavailable.');
+          throw new Error('Request timed out. The API may be unavailable.');
         } else {
           throw fetchError;
         }

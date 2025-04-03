@@ -171,7 +171,7 @@ export default function TheGamesDBTestPage() {
         
         if (data.success && data.coverUrl) {
           setSearchResults([{
-            title: gameTitle,
+            title: data.gameTitle || gameTitle,
             platform,
             coverUrl: data.coverUrl,
             source: data.source || apiSource
@@ -181,6 +181,7 @@ export default function TheGamesDBTestPage() {
           const cacheKey = `${data.source || apiSource}:${encodeURIComponent(gameTitle)}:${platform}`;
           localStorage.setItem(`cover_${cacheKey}`, JSON.stringify({
             url: data.coverUrl,
+            title: data.gameTitle || gameTitle,
             timestamp: Date.now()
           }));
           
