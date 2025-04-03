@@ -10,7 +10,7 @@ export default function EnhancedGameCover({
   width = 300, 
   height = 200, 
   className = '',
-  source = 'auto' // 'auto', 'tgdb', 'screenscraper'
+  source = 'screenscraper' // Default to screenscraper
 }) {
   const [coverUrl, setCoverUrl] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -18,7 +18,7 @@ export default function EnhancedGameCover({
   const [cacheDate, setCacheDate] = useState(null);
 
   useEffect(() => {
-    // Function to check localStorage cache
+    // Function to check localStorage cache - permanent storage
     const checkLocalCache = (cacheKey) => {
       try {
         if (typeof window !== 'undefined') {
@@ -26,18 +26,9 @@ export default function EnhancedGameCover({
           if (cachedData) {
             const { url, timestamp } = JSON.parse(cachedData);
             
-            // Check if cache is less than 7 days old
-            const now = Date.now();
-            const cacheAge = now - timestamp;
-            const cacheMaxAge = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
-            
-            if (cacheAge < cacheMaxAge) {
-              setCacheDate(new Date(timestamp).toLocaleDateString());
-              return url;
-            } else {
-              // Cache expired, remove it
-              localStorage.removeItem(`cover_${cacheKey}`);
-            }
+            // No expiration check - cache is permanent
+            setCacheDate(new Date(timestamp).toLocaleDateString());
+            return url;
           }
         }
         return null;
@@ -62,46 +53,55 @@ export default function EnhancedGameCover({
       }
     };
 
-    // Check if this is a reference to an external API
-    if (game.image) {
-      if (game.image.startsWith('tgdb:')) {
-        const cachedUrl = checkLocalCache(game.image);
-        if (cachedUrl) {
-          setCoverUrl(cachedUrl);
-          coverCache.set(game.image, cachedUrl);
-        } else {
-          fetchTGDBImage(game.image);
+    const attemptImageFetch = () => {
+      // First try existing image reference formats
+      if (game.image) {
+        if (game.image.startsWith('tgdb:')) {
+          const cachedUrl = checkLocalCache(game.image);
+          if (cachedUrl) {
+            setCoverUrl(cachedUrl);
+            coverCache.set(game.image, cachedUrl);
+          } else {
+            fetchTGDBImage(game.image);
+          }
+          return true;
+        } else if (game.image.startsWith('screenscraper:')) {
+          const cachedUrl = checkLocalCache(game.image);
+          if (cachedUrl) {
+            setCoverUrl(cachedUrl);
+            coverCache.set(game.image, cachedUrl);
+          } else {
+            fetchScreenscraperImage(game.image);
+          }
+          return true;
+        } else if (!game.image.includes('default-image')) {
+          // Regular local image
+          setCoverUrl(`/game/${game.image}`);
+          return true;
         }
-        return;
-      } else if (game.image.startsWith('screenscraper:')) {
-        const cachedUrl = checkLocalCache(game.image);
-        if (cachedUrl) {
-          setCoverUrl(cachedUrl);
-          coverCache.set(game.image, cachedUrl);
-        } else {
-          fetchScreenscraperImage(game.image);
-        }
-        return;
-      } else if (!game.image.includes('default-image')) {
-        // Regular local image
-        setCoverUrl(`/game/${game.image}`);
-        return;
       }
-    }
-
-    // No valid image, try to fetch from APIs based on title and core
-    if (game.title && game.core) {
-      // Generate a cache key
-      const cacheKey = `${source}:${game.title}:${game.core}`;
       
-      const cachedUrl = checkLocalCache(cacheKey);
-      if (cachedUrl) {
-        setCoverUrl(cachedUrl);
-        coverCache.set(cacheKey, cachedUrl);
-      } else {
-        fetchGameCover(source);
+      // If no valid image, try to fetch automatically using title and core
+      if (game.title && game.core) {
+        // Generate a cache key
+        const cacheKey = `${source}:${game.title}:${game.core}`;
+        
+        const cachedUrl = checkLocalCache(cacheKey);
+        if (cachedUrl) {
+          setCoverUrl(cachedUrl);
+          coverCache.set(cacheKey, cachedUrl);
+        } else {
+          fetchGameCover(source);
+        }
+        return true;
       }
-    }
+      
+      return false;
+    };
+
+    // Start the fetch process
+    attemptImageFetch();
+    
   }, [game, source]);
 
   // Function to fetch image from TheGamesDB based on reference
@@ -133,7 +133,7 @@ export default function EnhancedGameCover({
         setCoverUrl(data.coverUrl);
         coverCache.set(reference, data.coverUrl);
         
-        // Cache in localStorage
+        // Cache in localStorage permanently
         try {
           if (typeof window !== 'undefined') {
             const cacheData = {
@@ -186,7 +186,7 @@ export default function EnhancedGameCover({
         setCoverUrl(data.coverUrl);
         coverCache.set(reference, data.coverUrl);
         
-        // Cache in localStorage
+        // Cache in localStorage permanently
         try {
           if (typeof window !== 'undefined') {
             const cacheData = {
@@ -237,7 +237,7 @@ export default function EnhancedGameCover({
         setCoverUrl(data.coverUrl);
         coverCache.set(cacheKey, data.coverUrl);
         
-        // Cache in localStorage
+        // Cache in localStorage permanently
         try {
           if (typeof window !== 'undefined') {
             const cacheData = {

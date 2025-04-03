@@ -5,6 +5,7 @@ import {
   HomeIcon,
   CubeIcon,
   DeviceTabletIcon,
+  PhotoIcon,
 } from "@heroicons/react/24/outline";
 import { useState } from "react";
 
@@ -35,6 +36,12 @@ export default function MobileNav() {
       path: "/category",
       icon: CubeIcon,
       slug: "category",
+    },
+    {
+      name: "Cover Manager",
+      path: "/covers",
+      icon: PhotoIcon,
+      slug: "covers",
     },
     {
       name: "About",

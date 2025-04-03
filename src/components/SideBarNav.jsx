@@ -1,5 +1,5 @@
 "use client";
-import { HomeIcon, CubeIcon, DeviceTabletIcon } from "@heroicons/react/24/outline";
+import { HomeIcon, CubeIcon, DeviceTabletIcon, PhotoIcon } from "@heroicons/react/24/outline";
 import { usePathname } from "next/navigation";
 import { SiNintendo, SiPlaystation, SiSega } from 'react-icons/si';
 import { FaGamepad, FaMobileAlt } from 'react-icons/fa';
@@ -27,6 +27,11 @@ export default function SideBarNav({ categoryMenu }) {
       name: "ScreenScraper Demo",
       icon: CubeIcon,
       slug: "/screenscraper-demo",
+    },
+    {
+      name: "Cover Manager",
+      icon: PhotoIcon,
+      slug: "/covers",
     },
   ];
 
