@@ -1,28 +1,25 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Button, Input, Card, Select, SelectItem, Spinner, Divider } from '@nextui-org/react';
-import { IconSearch, IconBrandWikipedia, IconPhotoSearch } from '@tabler/icons-react';
-import { motion } from 'framer-motion';
-import toast from 'react-hot-toast';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function WikipediaTestPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [gameTitle, setGameTitle] = useState('');
   const [selectedImage, setSelectedImage] = useState(null);
   const [availableImages, setAvailableImages] = useState([]);
   const [gameInfo, setGameInfo] = useState(null);
+  const [error, setError] = useState(null);
 
   // Check for localStorage availability to cache results
-  const hasLocalStorage = typeof localStorage !== 'undefined';
+  const hasLocalStorage = typeof window !== 'undefined';
 
   // Function to search Wikipedia for a game
   const searchWikipedia = async () => {
     if (!searchQuery.trim()) {
-      toast.error('Please enter a game title to search');
+      setError('Please enter a game title to search');
       return;
     }
 
@@ -31,6 +28,7 @@ export default function WikipediaTestPage() {
     setSelectedImage(null);
     setAvailableImages([]);
     setGameInfo(null);
+    setError(null);
 
     try {
       // First check local storage cache
@@ -40,7 +38,6 @@ export default function WikipediaTestPage() {
       if (cachedResults) {
         const parsed = JSON.parse(cachedResults);
         setSearchResults(parsed);
-        toast.success('Found cached search results');
         setLoading(false);
         return;
       }
@@ -60,14 +57,12 @@ export default function WikipediaTestPage() {
         if (hasLocalStorage) {
           localStorage.setItem(cacheKey, JSON.stringify(data.results));
         }
-        
-        toast.success(`Found ${data.results.length} results`);
       } else {
-        toast.error('No results found on Wikipedia');
+        setError('No results found on Wikipedia');
       }
     } catch (error) {
       console.error('Wikipedia search error:', error);
-      toast.error(`Search failed: ${error.message}`);
+      setError(`Search failed: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -76,10 +71,10 @@ export default function WikipediaTestPage() {
   // Function to get details about a Wikipedia page and its images
   const getPageDetails = async (title) => {
     setLoading(true);
-    setGameTitle(title);
     setSelectedImage(null);
     setAvailableImages([]);
     setGameInfo(null);
+    setError(null);
     
     try {
       // First check local storage cache
@@ -94,7 +89,6 @@ export default function WikipediaTestPage() {
           const primary = parsed.images.find(img => img.isPrimary);
           setSelectedImage(primary || parsed.images[0]);
         }
-        toast.success('Loaded cached page data');
         setLoading(false);
         return;
       }
@@ -116,10 +110,8 @@ export default function WikipediaTestPage() {
           // Select primary image by default
           const primary = data.images.find(img => img.isPrimary);
           setSelectedImage(primary || data.images[0]);
-          
-          toast.success(`Found ${data.images.length} images`);
         } else {
-          toast.error('No images found for this game');
+          setError('No images found for this game');
         }
         
         // Cache the results
@@ -127,11 +119,11 @@ export default function WikipediaTestPage() {
           localStorage.setItem(cacheKey, JSON.stringify(data));
         }
       } else {
-        toast.error('Could not retrieve page details');
+        setError('Could not retrieve page details');
       }
     } catch (error) {
       console.error('Wikipedia page error:', error);
-      toast.error(`Failed to get page details: ${error.message}`);
+      setError(`Failed to get page details: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -140,7 +132,7 @@ export default function WikipediaTestPage() {
   // Direct cover image fetch for game title
   const fetchDirectCover = async () => {
     if (!searchQuery.trim()) {
-      toast.error('Please enter a game title to search');
+      setError('Please enter a game title to search');
       return;
     }
 
@@ -149,6 +141,7 @@ export default function WikipediaTestPage() {
     setSelectedImage(null);
     setAvailableImages([]);
     setGameInfo(null);
+    setError(null);
     
     try {
       // Check cache first
@@ -167,7 +160,6 @@ export default function WikipediaTestPage() {
           url: parsed.pageUrl,
           extract: parsed.extract || ''
         });
-        toast.success('Loaded cached cover image');
         setLoading(false);
         return;
       }
@@ -196,14 +188,12 @@ export default function WikipediaTestPage() {
         if (hasLocalStorage) {
           localStorage.setItem(cacheKey, JSON.stringify(data));
         }
-        
-        toast.success('Found cover image');
       } else {
-        toast.error('No cover image found');
+        setError('No cover image found');
       }
     } catch (error) {
       console.error('Wikipedia cover error:', error);
-      toast.error(`Failed to get cover: ${error.message}`);
+      setError(`Failed to get cover: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -224,35 +214,35 @@ export default function WikipediaTestPage() {
         
         <div className="w-full max-w-lg">
           <div className="flex flex-col gap-4">
-            <Input
-              label="Game Title"
-              placeholder="Enter game title e.g. Final Fantasy VII"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={handleKeyDown}
-              startContent={<IconSearch className="text-gray-400" />}
-              className="mb-2"
-            />
+            <div className="mb-4">
+              <label htmlFor="gameTitle" className="block text-sm font-medium mb-1">Game Title</label>
+              <input
+                id="gameTitle"
+                type="text"
+                placeholder="Enter game title e.g. Final Fantasy VII"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
             
             <div className="flex gap-2">
-              <Button
-                color="primary"
-                startContent={<IconSearch />}
-                isLoading={loading}
+              <button
                 onClick={searchWikipedia}
-                className="flex-1"
+                disabled={loading}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md disabled:opacity-50"
               >
-                Search Games
-              </Button>
+                {loading ? 'Searching...' : 'Search Games'}
+              </button>
               
-              <Button
-                color="secondary"
-                startContent={<IconPhotoSearch />}
-                isLoading={loading}
+              <button
                 onClick={fetchDirectCover}
+                disabled={loading}
+                className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-md disabled:opacity-50"
               >
                 Direct Cover Search
-              </Button>
+              </button>
             </div>
           </div>
         </div>
@@ -260,68 +250,72 @@ export default function WikipediaTestPage() {
 
       {loading && (
         <div className="flex justify-center my-8">
-          <Spinner size="lg" color="secondary" />
+          <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Search Results Panel */}
         {searchResults.length > 0 && (
-          <Card className="p-4">
+          <div className="border rounded-lg shadow-sm p-4">
             <h2 className="text-xl font-semibold mb-4">Search Results</h2>
             <div className="flex flex-col gap-3">
               {searchResults.map((result) => (
-                <motion.div
+                <div
                   key={result.pageid}
-                  whileHover={{ scale: 1.02 }}
-                  className="p-3 border rounded hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
+                  className="p-3 border rounded hover:bg-gray-100 cursor-pointer transition-all"
                   onClick={() => getPageDetails(result.title)}
                 >
                   <h3 className="font-medium">{result.title}</h3>
                   <p className="text-sm text-gray-500" 
                      dangerouslySetInnerHTML={{ __html: result.snippet }} />
-                </motion.div>
+                </div>
               ))}
             </div>
-          </Card>
+          </div>
         )}
 
         {/* Images Panel */}
         {availableImages.length > 0 && (
-          <Card className="p-4">
+          <div className="border rounded-lg shadow-sm p-4">
             <h2 className="text-xl font-semibold mb-4">Available Images</h2>
-            <Select
-              label="Select an image"
-              placeholder="Choose an image"
-              className="mb-4"
+            <select
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none mb-4"
               onChange={(e) => {
                 const selected = availableImages.find(img => img.title === e.target.value);
                 if (selected) setSelectedImage(selected);
               }}
             >
+              <option value="">Select an image</option>
               {availableImages.map((image) => (
-                <SelectItem key={image.title} value={image.title}>
+                <option key={image.title} value={image.title}>
                   {image.isPrimary ? `${image.title} (Primary)` : image.title}
-                </SelectItem>
+                </option>
               ))}
-            </Select>
-          </Card>
+            </select>
+          </div>
         )}
       </div>
 
       {/* Selected Image and Game Info */}
       {selectedImage && (
         <div className="mt-8">
-          <Card className="p-4">
+          <div className="border rounded-lg shadow-sm p-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col items-center">
                 <h2 className="text-xl font-semibold mb-4">Selected Cover Image</h2>
-                <div className="relative border dark:border-gray-700 rounded-md overflow-hidden" 
+                <div className="relative border rounded-md overflow-hidden" 
                      style={{ height: 300, width: '100%', maxWidth: 400 }}>
                   <img 
                     src={selectedImage.url} 
                     alt={gameInfo?.title || 'Game cover'} 
-                    className="absolute inset-0 w-full h-full object-contain"
+                    className="w-full h-full object-contain"
                   />
                 </div>
                 <p className="mt-2 text-sm text-gray-500">
@@ -334,31 +328,35 @@ export default function WikipediaTestPage() {
                   <h2 className="text-xl font-semibold mb-4">Game Information</h2>
                   <h3 className="text-lg font-medium mb-2">{gameInfo.title}</h3>
                   <p className="mb-4 text-sm">{gameInfo.extract?.substring(0, 300)}...</p>
-                  <Button
-                    as={Link}
+                  <a
                     href={gameInfo.url}
                     target="_blank"
-                    color="primary"
-                    variant="flat"
-                    startContent={<IconBrandWikipedia />}
+                    rel="noopener noreferrer"
+                    className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md"
                   >
                     View on Wikipedia
-                  </Button>
+                  </a>
                 </div>
               )}
             </div>
-          </Card>
+          </div>
         </div>
       )}
 
       {/* Navigation */}
       <div className="mt-8 flex justify-center gap-4">
-        <Button as={Link} href="/thegamesdb-test" variant="flat" color="primary">
+        <Link 
+          href="/thegamesdb-test"
+          className="inline-block bg-blue-100 hover:bg-blue-200 text-blue-800 font-medium py-2 px-4 rounded-md"
+        >
           TheGamesDB Test
-        </Button>
-        <Button as={Link} href="/screenscraper-test" variant="flat" color="secondary">
+        </Link>
+        <Link 
+          href="/screenscraper-test"
+          className="inline-block bg-purple-100 hover:bg-purple-200 text-purple-800 font-medium py-2 px-4 rounded-md"
+        >
           ScreenScraper Test
-        </Button>
+        </Link>
       </div>
     </div>
   );
