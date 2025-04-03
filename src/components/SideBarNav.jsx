@@ -1,10 +1,10 @@
 "use client";
-import { HomeIcon, CubeIcon, DeviceTabletIcon, PhotoIcon, DatabaseIcon } from "@heroicons/react/24/outline";
+import { HomeIcon, CubeIcon, DeviceTabletIcon, PhotoIcon } from "@heroicons/react/24/outline";
 import Link from 'next/link';
 import { usePathname } from "next/navigation";
 import { SiNintendo, SiPlaystation, SiSega } from 'react-icons/si';
 import { FaGamepad, FaMobileAlt } from 'react-icons/fa';
-import { FiSettings } from 'react-icons/fi';
+import { FiImage, FiDatabase, FiSettings, FiBookOpen } from 'react-icons/fi';
 
 export default function SideBarNav({ categoryMenu }) {
   const activeSegment = usePathname();
@@ -37,7 +37,7 @@ export default function SideBarNav({ categoryMenu }) {
     },
     {
       name: "TheGamesDB Test",
-      icon: DatabaseIcon,
+      icon: FiDatabase,
       slug: "/thegamesdb-test",
     },
     {
@@ -131,7 +131,7 @@ export default function SideBarNav({ categoryMenu }) {
                 : "incative hover:bg-primary rounded-md"
             }`}
           >
-            <DatabaseIcon className="w-5 h-5 text-accent" />
+            <FiDatabase className="w-5 h-5 text-accent" />
             TheGamesDB Test
           </a>
         </li>
@@ -144,7 +144,7 @@ export default function SideBarNav({ categoryMenu }) {
                 : "incative hover:bg-primary rounded-md"
             }`}
           >
-            <PhotoIcon className="w-5 h-5 text-accent" />
+            <FiImage className="w-5 h-5 text-accent" />
             ScreenScraper Test
           </a>
         </li>
@@ -157,7 +157,7 @@ export default function SideBarNav({ categoryMenu }) {
                 : "incative hover:bg-primary rounded-md"
             }`}
           >
-            <CubeIcon className="w-5 h-5 text-accent" />
+            <FiBookOpen className="w-5 h-5 text-accent" />
             Wikipedia Test
           </a>
         </li>

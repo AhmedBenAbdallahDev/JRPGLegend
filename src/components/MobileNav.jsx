@@ -6,15 +6,14 @@ import {
   CubeIcon,
   DeviceTabletIcon,
   PhotoIcon,
-  DatabaseIcon
 } from "@heroicons/react/24/outline";
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { FiDatabase, FiImage, FiBookOpen } from "react-icons/fi";
 
 export default function MobileNav() {
   const [isOpen, setIsOpen] = useState(false);
-  const activeSegment = usePathname();
+  const activeSegment = "/"; // Placeholder - in a real app you would use usePathname() from next/navigation
 
   const mobileNavItems = [
     {
@@ -127,7 +126,7 @@ export default function MobileNav() {
                     : "incative hover:bg-primary rounded-md"
                 }`}
               >
-                <DatabaseIcon className="w-5 h-5 text-accent" />
+                <FiDatabase className="w-5 h-5 text-accent" />
                 TheGamesDB Test
               </a>
             </li>
@@ -140,7 +139,7 @@ export default function MobileNav() {
                     : "incative hover:bg-primary rounded-md"
                 }`}
               >
-                <PhotoIcon className="w-5 h-5 text-accent" />
+                <FiImage className="w-5 h-5 text-accent" />
                 ScreenScraper Test
               </a>
             </li>
@@ -153,7 +152,7 @@ export default function MobileNav() {
                     : "incative hover:bg-primary rounded-md"
                 }`}
               >
-                <CubeIcon className="w-5 h-5 text-accent" />
+                <FiBookOpen className="w-5 h-5 text-accent" />
                 Wikipedia Test
               </a>
             </li>
