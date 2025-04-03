@@ -38,6 +38,108 @@ async function fetchWithTimeout(url, options = {}, timeout = 10000) {
 }
 
 /**
+ * Checks the ScreenScraper API status by trying to fetch a known game
+ * 
+ * @returns {Promise<object>} Object containing API status information
+ */
+export async function checkApiStatus() {
+  try {
+    // Check if required credentials are present
+    const hasCredentials = !!(SCREENSCRAPER_USER && SCREENSCRAPER_PASSWORD);
+    
+    if (!hasCredentials) {
+      return {
+        available: false,
+        message: 'Missing ScreenScraper API credentials',
+        credentials: {
+          user: !!SCREENSCRAPER_USER,
+          hasPassword: !!SCREENSCRAPER_PASSWORD,
+          devId: !!SCREENSCRAPER_DEV_ID
+        }
+      };
+    }
+    
+    // Try to fetch a very common game as a test
+    const platformId = getPlatformId('nes');
+    const url = `${SCREENSCRAPER_API_URL}/jeuInfos.php?devid=${SCREENSCRAPER_DEV_ID}&devpassword=${SCREENSCRAPER_DEV_PASSWORD}&softname=emulatorjs&output=json&romnom=${encodeURIComponent('Super Mario Bros')}&systemeid=${platformId}&ssid=${SCREENSCRAPER_USER}&sspassword=${SCREENSCRAPER_PASSWORD}`;
+    
+    const response = await fetchWithTimeout(url, {}, 8000); // 8 second timeout for status check
+    
+    if (!response.ok) {
+      let message = 'API responded with an error';
+      
+      if (response.status === 429) {
+        message = 'Rate limit exceeded';
+      } else if (response.status === 401 || response.status === 403) {
+        message = 'Authentication failed - check your credentials';
+      } else if (response.status === 504) {
+        message = 'Gateway timeout - the service might be experiencing high load';
+      } else {
+        message = `API error: ${response.status}`;
+      }
+      
+      return {
+        available: false,
+        message,
+        httpStatus: response.status,
+        credentials: {
+          user: !!SCREENSCRAPER_USER,
+          hasPassword: !!SCREENSCRAPER_PASSWORD
+        }
+      };
+    }
+    
+    // Try to parse the response
+    try {
+      const data = await response.json();
+      
+      // Check for API-level errors
+      if (data.error) {
+        return {
+          available: false,
+          message: `API error: ${data.error}`,
+          credentials: {
+            user: !!SCREENSCRAPER_USER,
+            hasPassword: !!SCREENSCRAPER_PASSWORD
+          }
+        };
+      }
+      
+      // Check if the response contains game data
+      const gameFound = !!(data.response && data.response.jeu);
+      
+      return {
+        available: true,
+        message: gameFound ? 'API is available and returned test game data' : 'API is available but test game was not found',
+        gameFound,
+        credentials: {
+          user: !!SCREENSCRAPER_USER,
+          hasPassword: !!SCREENSCRAPER_PASSWORD
+        }
+      };
+    } catch (parseError) {
+      return {
+        available: false,
+        message: `Failed to parse API response: ${parseError.message}`,
+        credentials: {
+          user: !!SCREENSCRAPER_USER,
+          hasPassword: !!SCREENSCRAPER_PASSWORD
+        }
+      };
+    }
+  } catch (error) {
+    return {
+      available: false,
+      message: error.message || 'Unknown error checking API status',
+      credentials: {
+        user: !!SCREENSCRAPER_USER,
+        hasPassword: !!SCREENSCRAPER_PASSWORD
+      }
+    };
+  }
+}
+
+/**
  * Searches for a game in the ScreenScraper database
  * 
  * @param {string} gameName - The name of the game to search for

@@ -1,5 +1,5 @@
-import { getGameCoverUrl as getScreenscraperCoverUrl } from '@/lib/screenscraper';
-import { getGameCoverUrl as getTGDBData } from '@/lib/thegamesdb';
+import { getGameCoverUrl as getScreenscraperCoverUrl, checkApiStatus as checkScreenscraperStatus } from '@/lib/screenscraper';
+import { getGameCoverUrl as getTGDBData, checkApiStatus as checkTGDBStatus } from '@/lib/thegamesdb';
 import { NextResponse } from 'next/server';
 
 /**
@@ -48,12 +48,41 @@ export async function GET(request) {
       }
     };
     
+    // Helper function to check if API is available
+    const checkAPIAvailability = async (apiSource) => {
+      try {
+        if (apiSource === 'screenscraper') {
+          const status = await checkScreenscraperStatus();
+          return status.available;
+        } else if (apiSource === 'tgdb') {
+          const status = await checkTGDBStatus();
+          return status.available;
+        }
+        return false;
+      } catch (error) {
+        console.error(`Error checking ${apiSource} availability:`, error);
+        return false;
+      }
+    };
+    
     // Fetch cover URL from the specified source
     let coverUrl = null;
+    let usedSource = source;
     
     try {
       if (source === 'screenscraper') {
-        coverUrl = await fetchWithTimeout(getScreenscraperCoverUrl(gameName, core));
+        // Check if ScreenScraper is available before making the request
+        const isAvailable = await checkAPIAvailability('screenscraper');
+        if (!isAvailable) {
+          console.warn('ScreenScraper API is unavailable, falling back to TheGamesDB');
+          const tgdbData = await fetchWithTimeout(getTGDBData(gameName, core));
+          if (tgdbData) {
+            coverUrl = tgdbData.coverUrl;
+            usedSource = 'tgdb';
+          }
+        } else {
+          coverUrl = await fetchWithTimeout(getScreenscraperCoverUrl(gameName, core));
+        }
       } else if (source === 'tgdb') {
         // For TheGamesDB, we get both metadata and cover URL
         const tgdbData = await fetchWithTimeout(getTGDBData(gameName, core));
@@ -61,19 +90,34 @@ export async function GET(request) {
           coverUrl = tgdbData.coverUrl;
         }
       } else if (source === 'auto') {
-        // Try ScreenScraper first, then fall back to TheGamesDB
-        try {
-          coverUrl = await fetchWithTimeout(getScreenscraperCoverUrl(gameName, core));
-        } catch (err) {
-          console.error('Error with ScreenScraper, falling back to TGDB:', err);
-          
+        // Try ScreenScraper first, check if it's available
+        const screenscraper_available = await checkAPIAvailability('screenscraper');
+        
+        if (screenscraper_available) {
           try {
-            const tgdbData = await fetchWithTimeout(getTGDBData(gameName, core));
-            if (tgdbData) {
-              coverUrl = tgdbData.coverUrl;
+            coverUrl = await fetchWithTimeout(getScreenscraperCoverUrl(gameName, core), 15000);
+            usedSource = 'screenscraper';
+          } catch (err) {
+            console.error('Error with ScreenScraper, falling back to TGDB:', err);
+            
+            try {
+              const tgdbData = await fetchWithTimeout(getTGDBData(gameName, core), 15000);
+              if (tgdbData) {
+                coverUrl = tgdbData.coverUrl;
+                usedSource = 'tgdb';
+              }
+            } catch (tgdbErr) {
+              console.error('TheGamesDB fallback failed:', tgdbErr);
+              throw tgdbErr;
             }
-          } catch (tgdbErr) {
-            console.error('TheGamesDB fallback failed:', tgdbErr);
+          }
+        } else {
+          // ScreenScraper not available, try TGDB directly
+          console.warn('ScreenScraper unavailable, trying TGDB directly');
+          const tgdbData = await fetchWithTimeout(getTGDBData(gameName, core), 15000);
+          if (tgdbData) {
+            coverUrl = tgdbData.coverUrl;
+            usedSource = 'tgdb';
           }
         }
       }
@@ -103,7 +147,7 @@ export async function GET(request) {
       { 
         success: true, 
         coverUrl,
-        source: source,
+        source: usedSource,
         cached: true,
         expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
       },

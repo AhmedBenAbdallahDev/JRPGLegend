@@ -62,6 +62,12 @@ export default function MobileNav() {
       icon: CubeIcon,
       slug: "contact",
     },
+    {
+      name: "API Config",
+      path: "/api-config",
+      icon: CubeIcon,
+      slug: "api-config",
+    },
   ];
   return (
     <>
