@@ -8,6 +8,7 @@ import {
   PhotoIcon,
 } from "@heroicons/react/24/outline";
 import { useState } from "react";
+import Link from "next/link";
 
 export default function MobileNav() {
   const [isOpen, setIsOpen] = useState(false);
@@ -42,6 +43,12 @@ export default function MobileNav() {
       path: "/covers",
       icon: PhotoIcon,
       slug: "covers",
+    },
+    {
+      name: "TheGamesDB Test",
+      path: "/thegamesdb-test",
+      icon: CubeIcon,
+      slug: "thegamesdb-test",
     },
     {
       name: "About",

@@ -13,6 +13,30 @@ const SCREENSCRAPER_DEV_PASSWORD = process.env.SCREENSCRAPER_DEV_PASSWORD || '';
 const SCREENSCRAPER_USER = process.env.SCREENSCRAPER_USER || '';  // Your screenscraper username
 const SCREENSCRAPER_PASSWORD = process.env.SCREENSCRAPER_PASSWORD || '';  // Your screenscraper password
 
+// Fetch helper with timeout
+async function fetchWithTimeout(url, options = {}, timeout = 10000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    
+    if (error.name === 'AbortError') {
+      throw new Error(`Request timeout after ${timeout}ms: ${url}`);
+    }
+    
+    throw error;
+  }
+}
+
 /**
  * Searches for a game in the ScreenScraper database
  * 
@@ -22,18 +46,42 @@ const SCREENSCRAPER_PASSWORD = process.env.SCREENSCRAPER_PASSWORD || '';  // You
  */
 export async function searchGame(gameName, platform) {
   try {
-    const url = `${SCREENSCRAPER_API_URL}/jeuInfos.php?devid=${SCREENSCRAPER_DEV_ID}&devpassword=${SCREENSCRAPER_DEV_PASSWORD}&softname=emulatorjs&output=json&romnom=${encodeURIComponent(gameName)}&systemeid=${platform}&ssid=${SCREENSCRAPER_USER}&sspassword=${SCREENSCRAPER_PASSWORD}`;
-    
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`ScreenScraper API error: ${response.status}`);
+    // Check if required credentials are present
+    if (!SCREENSCRAPER_USER || !SCREENSCRAPER_PASSWORD) {
+      throw new Error('ScreenScraper credentials missing. Check your environment variables.');
     }
     
-    const data = await response.json();
-    return data;
+    const url = `${SCREENSCRAPER_API_URL}/jeuInfos.php?devid=${SCREENSCRAPER_DEV_ID}&devpassword=${SCREENSCRAPER_DEV_PASSWORD}&softname=emulatorjs&output=json&romnom=${encodeURIComponent(gameName)}&systemeid=${platform}&ssid=${SCREENSCRAPER_USER}&sspassword=${SCREENSCRAPER_PASSWORD}`;
+    
+    const response = await fetchWithTimeout(url);
+    
+    if (!response.ok) {
+      if (response.status === 429) {
+        throw new Error('ScreenScraper API rate limit exceeded. Please try again later.');
+      } else if (response.status === 401 || response.status === 403) {
+        throw new Error('ScreenScraper API authentication failed. Check your credentials.');
+      } else if (response.status === 504) {
+        throw new Error('ScreenScraper API gateway timeout. The service might be experiencing high load.');
+      } else {
+        throw new Error(`ScreenScraper API error: ${response.status}`);
+      }
+    }
+    
+    try {
+      const data = await response.json();
+      
+      // Check for API-level errors
+      if (data.error) {
+        throw new Error(`ScreenScraper API error: ${data.error}`);
+      }
+      
+      return data;
+    } catch (parseError) {
+      throw new Error(`Failed to parse ScreenScraper API response: ${parseError.message}`);
+    }
   } catch (error) {
     console.error('Error fetching game data from ScreenScraper:', error);
-    return null;
+    throw error; // Propagate the error for better handling upstream
   }
 }
 
@@ -74,6 +122,10 @@ export function getPlatformId(core) {
  */
 export async function getGameCoverUrl(gameName, core) {
   try {
+    if (!gameName || !core) {
+      throw new Error('Game name and core are required');
+    }
+    
     const platformId = getPlatformId(core);
     if (!platformId) {
       throw new Error(`Unsupported platform for core: ${core}`);
@@ -81,14 +133,22 @@ export async function getGameCoverUrl(gameName, core) {
     
     const gameData = await searchGame(gameName, platformId);
     
-    if (!gameData || !gameData.response || !gameData.response.jeu) {
+    if (!gameData || !gameData.response) {
+      throw new Error('Invalid response from ScreenScraper API');
+    }
+    
+    if (!gameData.response.jeu) {
+      // Game not found, but API responded
       return null;
     }
     
     // Get box/cover art - preferring front boxart
     const mediaData = gameData.response.jeu.medias;
     
-    if (!mediaData) return null;
+    if (!mediaData) {
+      // No media available for this game
+      return null;
+    }
     
     // Try to find the box front image (type 1 in ScreenScraper)
     const boxFront = mediaData.find(media => media.type === 'box-2D' && media.region === 'eu') || 
@@ -104,8 +164,8 @@ export async function getGameCoverUrl(gameName, core) {
     return screenshot ? screenshot.url : null;
     
   } catch (error) {
-    console.error('Error fetching game cover:', error);
-    return null;
+    console.error(`Error fetching game cover for ${gameName} (${core}):`, error);
+    throw error; // Propagate the error for better handling upstream
   }
 }
 
@@ -155,6 +215,14 @@ export async function getGameMetadata(gameName, core) {
     
     const game = gameData.response.jeu;
     
+    // Get cover URL but don't let it fail the whole metadata request
+    let coverUrl = null;
+    try {
+      coverUrl = await getGameCoverUrl(gameName, core);
+    } catch (coverError) {
+      console.error('Error fetching cover URL:', coverError);
+    }
+    
     return {
       title: game.noms?.nom || gameName,
       description: game.synopsis?.synopsis || '',
@@ -164,10 +232,10 @@ export async function getGameMetadata(gameName, core) {
       genre: game.genres?.genre?.[0]?.text || '',
       players: game.joueurs?.text || '',
       rating: game.classifications?.classification?.[0]?.text || '',
-      coverUrl: await getGameCoverUrl(gameName, core)
+      coverUrl: coverUrl
     };
   } catch (error) {
     console.error('Error fetching game metadata:', error);
-    return null;
+    throw error; // Propagate the error for better handling upstream
   }
 } 

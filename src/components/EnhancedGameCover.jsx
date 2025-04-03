@@ -10,7 +10,7 @@ export default function EnhancedGameCover({
   width = 300, 
   height = 200, 
   className = '',
-  source = 'screenscraper' // Default to screenscraper
+  source = 'screenscraper' // Default to screenscraper. Options: 'screenscraper', 'tgdb', or 'auto' (tries screenscraper first, then tgdb)
 }) {
   const [coverUrl, setCoverUrl] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -123,35 +123,79 @@ export default function EnhancedGameCover({
       const gameTitle = decodeURIComponent(parts[1]);
       const core = parts[2];
       
-      const response = await fetch(`/api/game-covers?name=${encodeURIComponent(gameTitle)}&core=${core}&source=tgdb`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch cover');
-      }
+      // Create an AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
       
-      const data = await response.json();
-      if (data.success && data.coverUrl) {
-        setCoverUrl(data.coverUrl);
-        coverCache.set(reference, data.coverUrl);
+      try {
+        const response = await fetch(
+          `/api/game-covers?name=${encodeURIComponent(gameTitle)}&core=${core}&source=tgdb`,
+          { signal: controller.signal }
+        );
         
-        // Cache in localStorage permanently
-        try {
-          if (typeof window !== 'undefined') {
-            const cacheData = {
-              url: data.coverUrl,
-              timestamp: Date.now()
-            };
-            localStorage.setItem(`cover_${reference}`, JSON.stringify(cacheData));
-            setCacheDate(new Date().toLocaleDateString());
-          }
-        } catch (err) {
-          console.error("Error saving to localStorage:", err);
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch cover: ${response.status}`);
         }
-      } else {
-        throw new Error('Cover not found');
+        
+        const data = await response.json();
+        if (data.success && data.coverUrl) {
+          setCoverUrl(data.coverUrl);
+          coverCache.set(reference, data.coverUrl);
+          
+          // Cache in localStorage permanently
+          try {
+            if (typeof window !== 'undefined') {
+              const cacheData = {
+                url: data.coverUrl,
+                timestamp: Date.now()
+              };
+              localStorage.setItem(`cover_${reference}`, JSON.stringify(cacheData));
+              setCacheDate(new Date().toLocaleDateString());
+            }
+          } catch (err) {
+            console.error("Error saving to localStorage:", err);
+          }
+        } else {
+          throw new Error(data.error || 'Cover not found');
+        }
+      } catch (fetchError) {
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Request timed out. The API may be unavailable.');
+        } else {
+          throw fetchError;
+        }
       }
     } catch (err) {
       console.error('Error fetching TheGamesDB image:', err);
-      setError(err.message);
+      // Use a more user-friendly error message
+      const errorMessage = err.message && (
+        err.message.includes('timeout') || err.message.includes('504')
+      ) ? 'API timeout' : 'Cover unavailable';
+      
+      setError(errorMessage);
+      
+      // Try to fall back to ScreenScraper if TheGamesDB failed
+      try {
+        const parts = reference.split(':');
+        if (parts.length === 3) {
+          const gameTitle = decodeURIComponent(parts[1]);
+          const core = parts[2];
+          
+          const fallbackResponse = await fetch(`/api/game-covers?name=${encodeURIComponent(gameTitle)}&core=${core}&source=screenscraper`);
+          if (fallbackResponse.ok) {
+            const fallbackData = await fallbackResponse.json();
+            if (fallbackData.success && fallbackData.coverUrl) {
+              setCoverUrl(fallbackData.coverUrl);
+              coverCache.set(reference, fallbackData.coverUrl);
+              setError(null);
+            }
+          }
+        }
+      } catch (fallbackErr) {
+        console.error('Fallback to ScreenScraper also failed:', fallbackErr);
+      }
     } finally {
       setLoading(false);
     }
@@ -176,35 +220,79 @@ export default function EnhancedGameCover({
       const gameTitle = decodeURIComponent(parts[1]);
       const core = parts[2];
       
-      const response = await fetch(`/api/game-covers?name=${encodeURIComponent(gameTitle)}&core=${core}&source=screenscraper`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch cover');
-      }
+      // Create an AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
       
-      const data = await response.json();
-      if (data.success && data.coverUrl) {
-        setCoverUrl(data.coverUrl);
-        coverCache.set(reference, data.coverUrl);
+      try {
+        const response = await fetch(
+          `/api/game-covers?name=${encodeURIComponent(gameTitle)}&core=${core}&source=screenscraper`,
+          { signal: controller.signal }
+        );
         
-        // Cache in localStorage permanently
-        try {
-          if (typeof window !== 'undefined') {
-            const cacheData = {
-              url: data.coverUrl,
-              timestamp: Date.now()
-            };
-            localStorage.setItem(`cover_${reference}`, JSON.stringify(cacheData));
-            setCacheDate(new Date().toLocaleDateString());
-          }
-        } catch (err) {
-          console.error("Error saving to localStorage:", err);
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch cover: ${response.status}`);
         }
-      } else {
-        throw new Error('Cover not found');
+        
+        const data = await response.json();
+        if (data.success && data.coverUrl) {
+          setCoverUrl(data.coverUrl);
+          coverCache.set(reference, data.coverUrl);
+          
+          // Cache in localStorage permanently
+          try {
+            if (typeof window !== 'undefined') {
+              const cacheData = {
+                url: data.coverUrl,
+                timestamp: Date.now()
+              };
+              localStorage.setItem(`cover_${reference}`, JSON.stringify(cacheData));
+              setCacheDate(new Date().toLocaleDateString());
+            }
+          } catch (err) {
+            console.error("Error saving to localStorage:", err);
+          }
+        } else {
+          throw new Error(data.error || 'Cover not found');
+        }
+      } catch (fetchError) {
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Request timed out. The ScreenScraper API may be unavailable.');
+        } else {
+          throw fetchError;
+        }
       }
     } catch (err) {
       console.error('Error fetching ScreenScraper image:', err);
-      setError(err.message);
+      // Use a more user-friendly error message
+      const errorMessage = err.message && (
+        err.message.includes('timeout') || err.message.includes('504')
+      ) ? 'API timeout' : 'Cover unavailable';
+      
+      setError(errorMessage);
+      
+      // Try to fall back to TheGamesDB if ScreenScraper failed
+      try {
+        const parts = reference.split(':');
+        if (parts.length === 3) {
+          const gameTitle = decodeURIComponent(parts[1]);
+          const core = parts[2];
+          
+          const fallbackResponse = await fetch(`/api/game-covers?name=${encodeURIComponent(gameTitle)}&core=${core}&source=tgdb`);
+          if (fallbackResponse.ok) {
+            const fallbackData = await fallbackResponse.json();
+            if (fallbackData.success && fallbackData.coverUrl) {
+              setCoverUrl(fallbackData.coverUrl);
+              coverCache.set(reference, fallbackData.coverUrl);
+              setError(null);
+            }
+          }
+        }
+      } catch (fallbackErr) {
+        console.error('Fallback to TheGamesDB also failed:', fallbackErr);
+      }
     } finally {
       setLoading(false);
     }
@@ -228,34 +316,76 @@ export default function EnhancedGameCover({
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/game-covers?name=${encodeURIComponent(game.title)}&core=${game.core}&source=${preferredSource}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch cover');
-      }
-      const data = await response.json();
-      if (data.success && data.coverUrl) {
-        setCoverUrl(data.coverUrl);
-        coverCache.set(cacheKey, data.coverUrl);
+      // Create an AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      try {
+        const response = await fetch(
+          `/api/game-covers?name=${encodeURIComponent(game.title)}&core=${game.core}&source=${preferredSource}`,
+          { signal: controller.signal }
+        );
         
-        // Cache in localStorage permanently
-        try {
-          if (typeof window !== 'undefined') {
-            const cacheData = {
-              url: data.coverUrl,
-              timestamp: Date.now()
-            };
-            localStorage.setItem(`cover_${cacheKey}`, JSON.stringify(cacheData));
-            setCacheDate(new Date().toLocaleDateString());
-          }
-        } catch (err) {
-          console.error("Error saving to localStorage:", err);
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch cover: ${response.status}`);
         }
-      } else {
-        setError('Cover not found');
+        
+        const data = await response.json();
+        if (data.success && data.coverUrl) {
+          setCoverUrl(data.coverUrl);
+          coverCache.set(cacheKey, data.coverUrl);
+          
+          // Cache in localStorage permanently
+          try {
+            if (typeof window !== 'undefined') {
+              const cacheData = {
+                url: data.coverUrl,
+                timestamp: Date.now()
+              };
+              localStorage.setItem(`cover_${cacheKey}`, JSON.stringify(cacheData));
+              setCacheDate(new Date().toLocaleDateString());
+            }
+          } catch (err) {
+            console.error("Error saving to localStorage:", err);
+          }
+        } else {
+          throw new Error(data.error || 'Cover not found');
+        }
+      } catch (fetchError) {
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Request timed out. The ScreenScraper API may be unavailable.');
+        } else {
+          throw fetchError;
+        }
       }
     } catch (err) {
       console.error('Error fetching game cover:', err);
-      setError(err.message);
+      // Use a more user-friendly error message that doesn't break the UI
+      const errorMessage = err.message && (
+        err.message.includes('timeout') || err.message.includes('504')
+      ) ? 'API timeout' : 'Cover unavailable';
+      
+      setError(errorMessage);
+      
+      // Try to fall back to the other API if this was screenscraper and failed
+      if (preferredSource === 'screenscraper' && game.title && game.core) {
+        console.log('Falling back to TheGamesDB after ScreenScraper failure');
+        try {
+          const fallbackResponse = await fetch(`/api/game-covers?name=${encodeURIComponent(game.title)}&core=${game.core}&source=tgdb`);
+          if (fallbackResponse.ok) {
+            const fallbackData = await fallbackResponse.json();
+            if (fallbackData.success && fallbackData.coverUrl) {
+              setCoverUrl(fallbackData.coverUrl);
+              coverCache.set(cacheKey, fallbackData.coverUrl);
+              setError(null);
+            }
+          }
+        } catch (fallbackErr) {
+          console.error('Fallback to TheGamesDB also failed:', fallbackErr);
+        }
+      }
     } finally {
       setLoading(false);
     }

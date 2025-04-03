@@ -1,8 +1,10 @@
 "use client";
 import { HomeIcon, CubeIcon, DeviceTabletIcon, PhotoIcon } from "@heroicons/react/24/outline";
+import Link from 'next/link';
 import { usePathname } from "next/navigation";
 import { SiNintendo, SiPlaystation, SiSega } from 'react-icons/si';
 import { FaGamepad, FaMobileAlt } from 'react-icons/fa';
+import { FiImage, FiDatabase } from 'react-icons/fi';
 
 export default function SideBarNav({ categoryMenu }) {
   const activeSegment = usePathname();
@@ -32,6 +34,11 @@ export default function SideBarNav({ categoryMenu }) {
       name: "Cover Manager",
       icon: PhotoIcon,
       slug: "/covers",
+    },
+    {
+      name: "TheGamesDB Test",
+      icon: FiDatabase,
+      slug: "/thegamesdb-test",
     },
   ];
 

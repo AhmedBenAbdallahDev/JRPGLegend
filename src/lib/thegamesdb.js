@@ -8,11 +8,84 @@
 // TheGamesDB API configuration
 const TGDB_API_URL = 'https://api.thegamesdb.net/v1';
 // Access the API key from environment variables
-const TGDB_API_KEY = process.env.TGDB_API_KEY;
+const TGDB_API_KEY = process.env.TGDB_API_KEY || '26c28c263fbe921c94dd6902a900f53e4a88df9e1ab7146d07f5ca35d1c228fc';
 const TGDB_IMAGE_BASE_URL = 'https://cdn.thegamesdb.net/images/';
 
 // Check if API key is available
 const hasValidApiKey = !!TGDB_API_KEY;
+
+// Fetch helper with timeout
+async function fetchWithTimeout(url, options = {}, timeout = 10000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    
+    if (error.name === 'AbortError') {
+      throw new Error(`Request timeout after ${timeout}ms: ${url}`);
+    }
+    
+    throw error;
+  }
+}
+
+/**
+ * Check if TheGamesDB API is accessible with the current key
+ * 
+ * @returns {Promise<{available: boolean, message: string}>} - API availability status
+ */
+export async function checkApiStatus() {
+  try {
+    if (!TGDB_API_KEY) {
+      return { 
+        available: false, 
+        message: 'API key is missing or empty' 
+      };
+    }
+    
+    // Try a simple Platform List API call to check if the API key works
+    const url = `${TGDB_API_URL}/Platforms?apikey=${TGDB_API_KEY}`;
+    
+    const response = await fetchWithTimeout(url, {}, 5000);
+    
+    if (!response.ok) {
+      return { 
+        available: false, 
+        message: `API returned error status: ${response.status}` 
+      };
+    }
+    
+    const data = await response.json();
+    
+    if (data.code !== 200 || data.status !== 'Success') {
+      return { 
+        available: false, 
+        message: data.status || 'Unknown API error' 
+      };
+    }
+    
+    return { 
+      available: true, 
+      message: 'API is available and key is valid',
+      platforms: Object.keys(data.data.platforms || {}).length 
+    };
+  } catch (error) {
+    console.error('Error checking TheGamesDB API status:', error);
+    return { 
+      available: false, 
+      message: error.message || 'Unknown error checking API status' 
+    };
+  }
+}
 
 /**
  * Search for a game in TheGamesDB by name
@@ -47,7 +120,7 @@ export async function searchGame(gameName, platform) {
     url += `&include=boxart,platform`;
     
     console.log(`Searching TheGamesDB for game: ${gameName}, platform: ${platform}`);
-    const response = await fetch(url);
+    const response = await fetchWithTimeout(url);
     
     if (!response.ok) {
       throw new Error(`TheGamesDB API error: ${response.status}`);
@@ -62,7 +135,7 @@ export async function searchGame(gameName, platform) {
     return data;
   } catch (error) {
     console.error('Error fetching game data from TheGamesDB:', error);
-    return null;
+    throw error; // Propagate the error for better handling
   }
 }
 
@@ -111,7 +184,7 @@ export async function getGameImages(gameId) {
     const url = `${TGDB_API_URL}/Games/Images?apikey=${TGDB_API_KEY}&games_id=${gameId}&filter[type]=boxart,screenshot,clearlogo`;
     
     console.log(`Fetching images for game ID: ${gameId}`);
-    const response = await fetch(url);
+    const response = await fetchWithTimeout(url);
     
     if (!response.ok) {
       throw new Error(`TheGamesDB API error: ${response.status}`);
@@ -126,7 +199,7 @@ export async function getGameImages(gameId) {
     return data;
   } catch (error) {
     console.error('Error fetching game images from TheGamesDB:', error);
-    return null;
+    throw error; // Propagate the error for better handling
   }
 }
 
@@ -146,7 +219,7 @@ export async function getGameById(gameId) {
     // Build URL for ByGameID API endpoint
     const url = `${TGDB_API_URL}/Games/ByGameID?apikey=${TGDB_API_KEY}&id=${gameId}&fields=players,publishers,genres,overview,rating&include=boxart,platform`;
     
-    const response = await fetch(url);
+    const response = await fetchWithTimeout(url);
     
     if (!response.ok) {
       throw new Error(`TheGamesDB API error: ${response.status}`);
@@ -161,7 +234,7 @@ export async function getGameById(gameId) {
     return data;
   } catch (error) {
     console.error('Error fetching game by ID from TheGamesDB:', error);
-    return null;
+    throw error; // Propagate the error for better handling
   }
 }
 
@@ -170,13 +243,17 @@ export async function getGameById(gameId) {
  * 
  * @param {string} gameName - The name of the game
  * @param {string} core - The EmulatorJS core being used (snes, nes, etc.)
- * @returns {Promise<{coverUrl: string, metadata: Object}>} - The URL to the game cover image and game metadata
+ * @returns {Promise<string>} - The URL to the game cover image
  */
 export async function getGameCoverUrl(gameName, core) {
   try {
+    if (!gameName || !core) {
+      throw new Error('Game name and core are required');
+    }
+    
     // Check if we have a valid API key
     if (!hasValidApiKey) {
-      return null;
+      throw new Error('TheGamesDB API key is not configured');
     }
     
     // Step 1: Search for the game by name
@@ -234,32 +311,12 @@ export async function getGameCoverUrl(gameName, core) {
     // If we found a suitable image, construct the URL
     if (bestImage) {
       const coverUrl = `${baseUrl}${bestImage.filename}`;
-      
-      // Extract the metadata
-      const platforms = searchData.data.platforms || {};
-      const platformName = platforms[game.platform] ? platforms[game.platform].name : null;
-      
-      // Build metadata object
-      const metadata = {
-        title: game.game_title,
-        description: game.overview || null,
-        releaseDate: game.release_date || null,
-        developer: null, // Not provided in the basic search
-        publisher: game.publishers?.[0] || null,
-        genre: game.genres?.map(id => searchData.data.genres?.[id]?.name).filter(Boolean).join(', ') || null,
-        players: game.players || null,
-        rating: game.rating || null,
-        platform: platformName,
-        gameId: game.id,
-        source: 'thegamesdb'
-      };
-      
-      return { coverUrl, metadata };
+      return coverUrl;
     }
     
     return null;
   } catch (error) {
-    console.error('Error fetching game cover from TheGamesDB:', error);
-    return null;
+    console.error(`Error fetching game cover from TheGamesDB for ${gameName} (${core}):`, error);
+    throw error; // Propagate the error for better handling upstream
   }
 } 

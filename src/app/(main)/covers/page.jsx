@@ -109,32 +109,70 @@ export default function CoverManagerPage() {
     setSearchResults([]);
     
     try {
-      // Search for game cover
-      const response = await fetch(`/api/game-covers?name=${encodeURIComponent(gameTitle)}&core=${platform}&source=screenscraper`);
-      const data = await response.json();
+      // Search for game cover with a timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
       
-      if (data.success && data.coverUrl) {
-        setSearchResults([{
-          title: gameTitle,
-          platform,
-          coverUrl: data.coverUrl
-        }]);
+      try {
+        const response = await fetch(
+          `/api/game-covers?name=${encodeURIComponent(gameTitle)}&core=${platform}&source=screenscraper`,
+          { signal: controller.signal }
+        );
         
-        // Save to localStorage for permanent caching
-        const cacheKey = `screenscraper:${encodeURIComponent(gameTitle)}:${platform}`;
-        localStorage.setItem(`cover_${cacheKey}`, JSON.stringify({
-          url: data.coverUrl,
-          timestamp: Date.now()
-        }));
+        clearTimeout(timeoutId);
         
-        // Update stats after adding new cache
-        updateCacheStats();
-      } else {
-        alert('No cover found for this game');
+        if (!response.ok) {
+          // Try to parse the error response
+          let errorData;
+          try {
+            errorData = await response.json();
+            throw new Error(errorData.error || `Server error: ${response.status}`);
+          } catch (parseError) {
+            // If JSON parsing fails, use the status text
+            throw new Error(`Server error (${response.status}): ${response.statusText}`);
+          }
+        }
+        
+        const data = await response.json();
+        
+        if (data.success && data.coverUrl) {
+          setSearchResults([{
+            title: gameTitle,
+            platform,
+            coverUrl: data.coverUrl
+          }]);
+          
+          // Save to localStorage for permanent caching
+          const cacheKey = `screenscraper:${encodeURIComponent(gameTitle)}:${platform}`;
+          localStorage.setItem(`cover_${cacheKey}`, JSON.stringify({
+            url: data.coverUrl,
+            timestamp: Date.now()
+          }));
+          
+          // Update stats after adding new cache
+          updateCacheStats();
+        } else {
+          alert('No cover found for this game');
+        }
+      } catch (fetchError) {
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Request timed out. The server took too long to respond.');
+        } else {
+          throw fetchError;
+        }
       }
     } catch (error) {
       console.error('Error searching for game cover:', error);
-      alert('Error: ' + error.message);
+      
+      // Provide a more user-friendly error message
+      let errorMessage = error.message;
+      if (errorMessage.includes('504') || errorMessage.includes('timeout')) {
+        errorMessage = 'The request to screenscraper.fr timed out. The service might be busy or temporarily unavailable. Please try again later.';
+      } else if (errorMessage.includes('Unexpected token')) {
+        errorMessage = 'Received an invalid response from the server. The screenscraper.fr service might be experiencing issues.';
+      }
+      
+      alert('Error: ' + errorMessage);
     } finally {
       setLoading(false);
     }

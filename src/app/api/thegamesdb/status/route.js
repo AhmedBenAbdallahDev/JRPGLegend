@@ -1,12 +1,25 @@
+import { checkApiStatus } from '@/lib/thegamesdb';
 import { NextResponse } from 'next/server';
 
+/**
+ * API endpoint to check TheGamesDB API status
+ */
 export async function GET() {
-  const apiKey = process.env.TGDB_API_KEY;
-  
-  return NextResponse.json({
-    available: !!apiKey,
-    message: apiKey 
-      ? 'TheGamesDB API key is configured' 
-      : 'TheGamesDB API key is not configured. The system will fall back to ScreenScraper API.'
-  });
+  try {
+    const status = await checkApiStatus();
+    
+    return NextResponse.json({
+      available: status.available,
+      message: status.message,
+      platformsCount: status.platforms,
+      apiKey: process.env.TGDB_API_KEY ? 'Set in env' : 'Using default'
+    });
+  } catch (error) {
+    console.error('Error checking TheGamesDB API status:', error);
+    
+    return NextResponse.json(
+      { available: false, error: error.message },
+      { status: 500 }
+    );
+  }
 } 

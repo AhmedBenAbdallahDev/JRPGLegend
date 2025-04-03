@@ -29,32 +29,71 @@ export async function GET(request) {
       'Surrogate-Control': 'max-age=2592000'
     };
     
+    // Function to fetch with timeout
+    const fetchWithTimeout = async (fetchPromise, timeoutMs = 10000) => {
+      let timeoutId;
+      
+      // Create a promise that rejects after timeoutMs
+      const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error(`Request timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
+      });
+      
+      try {
+        // Race the fetch against the timeout
+        return await Promise.race([fetchPromise, timeoutPromise]);
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    };
+    
     // Fetch cover URL from the specified source
     let coverUrl = null;
     
-    if (source === 'screenscraper') {
-      coverUrl = await getScreenscraperCoverUrl(gameName, core);
-    } else if (source === 'tgdb') {
-      // For TheGamesDB, we get both metadata and cover URL
-      const tgdbData = await getTGDBData(gameName, core);
-      if (tgdbData) {
-        coverUrl = tgdbData.coverUrl;
-      }
-    } else if (source === 'auto') {
-      // Try ScreenScraper first, then fall back to TheGamesDB
-      coverUrl = await getScreenscraperCoverUrl(gameName, core);
-      
-      if (!coverUrl) {
-        const tgdbData = await getTGDBData(gameName, core);
+    try {
+      if (source === 'screenscraper') {
+        coverUrl = await fetchWithTimeout(getScreenscraperCoverUrl(gameName, core));
+      } else if (source === 'tgdb') {
+        // For TheGamesDB, we get both metadata and cover URL
+        const tgdbData = await fetchWithTimeout(getTGDBData(gameName, core));
         if (tgdbData) {
           coverUrl = tgdbData.coverUrl;
         }
+      } else if (source === 'auto') {
+        // Try ScreenScraper first, then fall back to TheGamesDB
+        try {
+          coverUrl = await fetchWithTimeout(getScreenscraperCoverUrl(gameName, core));
+        } catch (err) {
+          console.error('Error with ScreenScraper, falling back to TGDB:', err);
+          
+          try {
+            const tgdbData = await fetchWithTimeout(getTGDBData(gameName, core));
+            if (tgdbData) {
+              coverUrl = tgdbData.coverUrl;
+            }
+          } catch (tgdbErr) {
+            console.error('TheGamesDB fallback failed:', tgdbErr);
+          }
+        }
       }
+    } catch (apiError) {
+      console.error(`Error fetching from ${source}:`, apiError);
+      return NextResponse.json(
+        { 
+          error: `API error: ${apiError.message}`,
+          source: source
+        },
+        { status: 503 }
+      );
     }
     
     if (!coverUrl) {
       return NextResponse.json(
-        { error: 'No cover image found' },
+        { 
+          error: 'No cover image found',
+          source: source 
+        },
         { status: 404 }
       );
     }
