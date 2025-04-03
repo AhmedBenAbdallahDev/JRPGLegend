@@ -98,44 +98,48 @@ export async function searchGame(gameName, platform) {
   try {
     // Check if we have a valid API key
     if (!hasValidApiKey) {
-      console.warn('Missing TheGamesDB API key. Please set TGDB_API_KEY in your environment variables.');
-      return null;
+      console.warn('Missing TheGamesDB API key.');
+      return null; // Return null instead of throwing error immediately
     }
     
-    // Map EmulatorJS cores to TheGamesDB platform IDs
     const platformId = getPlatformId(platform);
-    
-    // Build the URL for ByGameName API endpoint
     let url = `${TGDB_API_URL}/Games/ByGameName?apikey=${TGDB_API_KEY}&name=${encodeURIComponent(gameName)}`;
-    
-    // Add fields to retrieve additional data
     url += `&fields=players,publishers,genres,overview,rating`;
-    
-    // Add platform filter if available
     if (platformId) {
       url += `&filter[platform]=${platformId}`;
     }
-    
-    // Include boxart and platform data
     url += `&include=boxart,platform`;
     
-    console.log(`Searching TheGamesDB for game: ${gameName}, platform: ${platform}`);
+    console.log(`Searching TheGamesDB: ${url}`);
     const response = await fetchWithTimeout(url);
     
+    // Specifically handle 404 as game not found
+    if (response.status === 404) {
+      console.log(`TheGamesDB returned 404 for game: ${gameName}, platform: ${platform}`);
+      return null;
+    }
+    
     if (!response.ok) {
+      // Log the specific error status for other errors
+      const errorText = await response.text();
+      console.error(`TheGamesDB API error (${response.status}) for ${url}: ${errorText}`);
       throw new Error(`TheGamesDB API error: ${response.status}`);
     }
     
     const data = await response.json();
     
     if (data.code !== 200 || data.status !== 'Success') {
+      console.error(`TheGamesDB API returned non-success status: ${data.status || 'Unknown'}`, data);
       throw new Error(`TheGamesDB API error: ${data.status || 'Unknown error'}`);
     }
     
+    console.log(`Found ${data.data?.games?.length || 0} games from TheGamesDB for: ${gameName}`);
     return data;
   } catch (error) {
-    console.error('Error fetching game data from TheGamesDB:', error);
-    throw error; // Propagate the error for better handling
+    // Log the caught error with more context
+    console.error(`Error in searchGame for ${gameName} (${platform}):`, error);
+    // Re-throw but maybe consider returning null if error is expected (like timeout)
+    throw error; 
   }
 }
 
@@ -177,29 +181,39 @@ export async function getGameImages(gameId) {
   try {
     // Check if we have a valid API key
     if (!hasValidApiKey) {
+      console.warn('Missing TheGamesDB API key for image fetch.');
       return null;
     }
     
-    // Build URL for Images API endpoint
     const url = `${TGDB_API_URL}/Games/Images?apikey=${TGDB_API_KEY}&games_id=${gameId}&filter[type]=boxart,screenshot,clearlogo`;
     
-    console.log(`Fetching images for game ID: ${gameId}`);
+    console.log(`Fetching TheGamesDB images: ${url}`);
     const response = await fetchWithTimeout(url);
     
+    // Handle 404 for images specifically
+    if (response.status === 404) {
+      console.log(`TheGamesDB returned 404 for images for game ID: ${gameId}`);
+      return null;
+    }
+    
     if (!response.ok) {
-      throw new Error(`TheGamesDB API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error(`TheGamesDB Image API error (${response.status}) for ${url}: ${errorText}`);
+      throw new Error(`TheGamesDB Image API error: ${response.status}`);
     }
     
     const data = await response.json();
     
     if (data.code !== 200 || data.status !== 'Success') {
-      throw new Error(`TheGamesDB API error: ${data.status || 'Unknown error'}`);
+      console.error(`TheGamesDB Image API returned non-success status: ${data.status || 'Unknown'}`, data);
+      throw new Error(`TheGamesDB Image API error: ${data.status || 'Unknown error'}`);
     }
     
+    console.log(`Found ${Object.keys(data.data?.images || {}).length} image sets from TheGamesDB for ID: ${gameId}`);
     return data;
   } catch (error) {
-    console.error('Error fetching game images from TheGamesDB:', error);
-    throw error; // Propagate the error for better handling
+    console.error(`Error in getGameImages for game ID ${gameId}:`, error);
+    throw error; 
   }
 }
 
@@ -251,72 +265,74 @@ export async function getGameCoverUrl(gameName, core) {
       throw new Error('Game name and core are required');
     }
     
-    // Check if we have a valid API key
+    // Check API key status
     if (!hasValidApiKey) {
       throw new Error('TheGamesDB API key is not configured');
     }
     
+    console.log(`[TGDB GetCover] Starting search for: ${gameName} (${core})`);
+    
     // Step 1: Search for the game by name
     const searchData = await searchGame(gameName, core);
     
+    // Handle case where searchGame returns null (e.g., 404 or missing key)
     if (!searchData || !searchData.data || !searchData.data.games || searchData.data.games.length === 0) {
-      console.warn(`No games found for: ${gameName} on platform: ${core}`);
+      console.warn(`[TGDB GetCover] No game found or search failed for: ${gameName} on platform: ${core}`);
       return null;
     }
     
     // Get the first game result
     const game = searchData.data.games[0];
     const gameId = game.id;
+    console.log(`[TGDB GetCover] Found game ID: ${gameId} for ${gameName}`);
     
     // Step 2: Get images for the game using its ID
     const imagesData = await getGameImages(gameId);
     
+    // Handle case where getGameImages returns null
     if (!imagesData || !imagesData.data || !imagesData.data.images || !imagesData.data.images[gameId]) {
-      console.warn(`No images found for game ID: ${gameId}`);
+      console.warn(`[TGDB GetCover] No images found or image fetch failed for game ID: ${gameId}`);
       return null;
     }
     
     const images = imagesData.data.images[gameId];
+    console.log(`[TGDB GetCover] Found ${images.length} image entries for game ID: ${gameId}`);
     
     // The base URL should be available in the response
     const baseUrl = imagesData.data.base_url?.original || TGDB_IMAGE_BASE_URL;
+    console.log(`[TGDB GetCover] Using image base URL: ${baseUrl}`);
     
     // Get cover art (prefer front boxart)
     let bestImage = null;
+    const imageTypePreference = ['boxart-front', 'boxart', 'screenshot', 'clearlogo'];
     
-    // First try to find front boxart
-    const boxartFront = images.find(img => img.type === 'boxart' && img.side === 'front');
-    if (boxartFront) {
-      bestImage = boxartFront;
-    } else {
-      // Then try any boxart
-      const boxart = images.find(img => img.type === 'boxart');
-      if (boxart) {
-        bestImage = boxart;
+    for (const type of imageTypePreference) {
+      if (type === 'boxart-front') {
+        bestImage = images.find(img => img.type === 'boxart' && img.side === 'front');
       } else {
-        // Then try screenshots
-        const screenshot = images.find(img => img.type === 'screenshot');
-        if (screenshot) {
-          bestImage = screenshot;
-        } else {
-          // Finally try clearlogo
-          const clearlogo = images.find(img => img.type === 'clearlogo');
-          if (clearlogo) {
-            bestImage = clearlogo;
-          }
-        }
+        bestImage = images.find(img => img.type === type);
+      }
+      
+      if (bestImage) {
+        console.log(`[TGDB GetCover] Selected image type: ${type === 'boxart-front' ? 'boxart (front)' : type}`);
+        break; 
       }
     }
     
     // If we found a suitable image, construct the URL
-    if (bestImage) {
+    if (bestImage && bestImage.filename) {
       const coverUrl = `${baseUrl}${bestImage.filename}`;
+      console.log(`[TGDB GetCover] Constructed cover URL: ${coverUrl}`);
       return coverUrl;
+    } else {
+      console.warn(`[TGDB GetCover] No suitable image found in available types for game ID: ${gameId}`);
     }
     
     return null;
   } catch (error) {
-    console.error(`Error fetching game cover from TheGamesDB for ${gameName} (${core}):`, error);
-    throw error; // Propagate the error for better handling upstream
+    // Log the error originating from this function specifically
+    console.error(`[TGDB GetCover] Error processing ${gameName} (${core}):`, error);
+    // Re-throw to allow the calling function (e.g., API route) to handle it
+    throw error; 
   }
 } 
