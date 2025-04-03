@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { SiNintendo, SiPlaystation, SiSega } from 'react-icons/si';
 import { FaGamepad, FaMobileAlt } from 'react-icons/fa';
 import { FiImage, FiDatabase, FiSettings } from 'react-icons/fi';
+import { IconDatabase, IconPhoto, IconBrandWikipedia } from "@tabler/icons-react";
 
 export default function SideBarNav({ categoryMenu }) {
   const activeSegment = usePathname();
@@ -118,6 +119,49 @@ export default function SideBarNav({ categoryMenu }) {
             </a>
           </li>
         ))}
+      </ul>
+
+      <div className="text-accent text-xs mb-2">API TEST PAGES</div>
+      <ul className="bg-muted flex flex-col gap-2 mb-6">
+        <li>
+          <a
+            href="/thegamesdb-test"
+            className={`text-sm tracking-wide flex gap-2 items-center p-1 px-2 ${
+              activeSegment === "/thegamesdb-test"
+                ? "active bg-primary rounded-md"
+                : "incative hover:bg-primary rounded-md"
+            }`}
+          >
+            <IconDatabase className="w-5 h-5 text-accent" />
+            TheGamesDB Test
+          </a>
+        </li>
+        <li>
+          <a
+            href="/screenscraper-test"
+            className={`text-sm tracking-wide flex gap-2 items-center p-1 px-2 ${
+              activeSegment === "/screenscraper-test"
+                ? "active bg-primary rounded-md"
+                : "incative hover:bg-primary rounded-md"
+            }`}
+          >
+            <IconPhoto className="w-5 h-5 text-accent" />
+            ScreenScraper Test
+          </a>
+        </li>
+        <li>
+          <a
+            href="/wikipedia-test"
+            className={`text-sm tracking-wide flex gap-2 items-center p-1 px-2 ${
+              activeSegment === "/wikipedia-test"
+                ? "active bg-primary rounded-md"
+                : "incative hover:bg-primary rounded-md"
+            }`}
+          >
+            <IconBrandWikipedia className="w-5 h-5 text-accent" />
+            Wikipedia Test
+          </a>
+        </li>
       </ul>
     </>
   );

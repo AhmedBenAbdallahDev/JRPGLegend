@@ -1,9 +1,10 @@
 import { getGameCoverUrl as getScreenscraperCoverUrl, checkApiStatus as checkScreenscraperStatus } from '@/lib/screenscraper';
 import { getGameCoverUrl as getTGDBData, checkApiStatus as checkTGDBStatus } from '@/lib/thegamesdb';
+import { getGameCoverFromWikipedia } from '@/lib/wikipedia';
 import { NextResponse } from 'next/server';
 
 /**
- * API endpoint to fetch game covers from either ScreenScraper or TheGamesDB
+ * API endpoint to fetch game covers from either ScreenScraper, TheGamesDB, or Wikipedia
  * Caches results to reduce API calls
  */
 export async function GET(request) {
@@ -12,7 +13,7 @@ export async function GET(request) {
     const searchParams = new URL(request.url).searchParams;
     const gameName = searchParams.get('name');
     const core = searchParams.get('core');
-    const source = searchParams.get('source') || 'screenscraper'; // Default to ScreenScraper
+    const source = searchParams.get('source') || 'auto'; // Change default to 'auto' to try all sources
     
     if (!gameName || !core) {
       return NextResponse.json(
@@ -58,7 +59,8 @@ export async function GET(request) {
           const status = await checkTGDBStatus();
           return status.available;
         }
-        return false;
+        // Wikipedia doesn't need a status check
+        return true;
       } catch (error) {
         console.error(`Error checking ${apiSource} availability:`, error);
         return false;
@@ -69,6 +71,7 @@ export async function GET(request) {
     let coverUrl = null;
     let usedSource = source;
     let gameTitle = null;
+    let wikiPageUrl = null;
     
     try {
       if (source === 'screenscraper') {
@@ -92,8 +95,17 @@ export async function GET(request) {
           coverUrl = tgdbResult.coverUrl;
           gameTitle = tgdbResult.gameTitle || gameName;
         }
+      } else if (source === 'wikipedia') {
+        // Get cover from Wikipedia
+        const wikiResult = await fetchWithTimeout(getGameCoverFromWikipedia(gameName));
+        if (wikiResult) {
+          coverUrl = wikiResult.coverUrl;
+          gameTitle = wikiResult.title || gameName;
+          wikiPageUrl = wikiResult.pageUrl;
+        }
       } else if (source === 'auto') {
-        // Try ScreenScraper first, check if it's available
+        // Try in order: ScreenScraper, TGDB, Wikipedia
+        // First try ScreenScraper
         const screenscraper_available = await checkAPIAvailability('screenscraper');
         
         if (screenscraper_available) {
@@ -101,28 +113,78 @@ export async function GET(request) {
             coverUrl = await fetchWithTimeout(getScreenscraperCoverUrl(gameName, core), 15000);
             usedSource = 'screenscraper';
           } catch (err) {
-            console.error('Error with ScreenScraper, falling back to TGDB:', err);
+            console.warn('Error with ScreenScraper, falling back to TGDB:', err);
             
             try {
+              // Try TGDB as first fallback
               const tgdbResult = await fetchWithTimeout(getTGDBData(gameName, core), 15000);
-              if (tgdbResult) {
+              if (tgdbResult && tgdbResult.coverUrl) {
                 coverUrl = tgdbResult.coverUrl;
                 gameTitle = tgdbResult.gameTitle || gameName;
                 usedSource = 'tgdb';
+              } else {
+                // If TGDB fails, try Wikipedia
+                console.warn('TGDB returned no results, trying Wikipedia');
+                const wikiResult = await fetchWithTimeout(getGameCoverFromWikipedia(gameName), 15000);
+                if (wikiResult) {
+                  coverUrl = wikiResult.coverUrl;
+                  gameTitle = wikiResult.title || gameName;
+                  wikiPageUrl = wikiResult.pageUrl;
+                  usedSource = 'wikipedia';
+                }
               }
-            } catch (tgdbErr) {
-              console.error('TheGamesDB fallback failed:', tgdbErr);
-              throw tgdbErr;
+            } catch (fallbackErr) {
+              console.error('TGDB fallback failed, trying Wikipedia:', fallbackErr);
+              
+              try {
+                const wikiResult = await fetchWithTimeout(getGameCoverFromWikipedia(gameName), 15000);
+                if (wikiResult) {
+                  coverUrl = wikiResult.coverUrl;
+                  gameTitle = wikiResult.title || gameName;
+                  wikiPageUrl = wikiResult.pageUrl;
+                  usedSource = 'wikipedia';
+                }
+              } catch (wikiErr) {
+                console.error('All fallbacks failed:', wikiErr);
+                throw new Error('All cover sources failed');
+              }
             }
           }
         } else {
-          // ScreenScraper not available, try TGDB directly
-          console.warn('ScreenScraper unavailable, trying TGDB directly');
-          const tgdbResult = await fetchWithTimeout(getTGDBData(gameName, core), 15000);
-          if (tgdbResult) {
-            coverUrl = tgdbResult.coverUrl;
-            gameTitle = tgdbResult.gameTitle || gameName;
-            usedSource = 'tgdb';
+          // ScreenScraper not available, try TGDB
+          console.warn('ScreenScraper unavailable, trying TGDB');
+          try {
+            const tgdbResult = await fetchWithTimeout(getTGDBData(gameName, core), 15000);
+            if (tgdbResult && tgdbResult.coverUrl) {
+              coverUrl = tgdbResult.coverUrl;
+              gameTitle = tgdbResult.gameTitle || gameName;
+              usedSource = 'tgdb';
+            } else {
+              // If TGDB fails, try Wikipedia
+              console.warn('TGDB returned no results, trying Wikipedia');
+              const wikiResult = await fetchWithTimeout(getGameCoverFromWikipedia(gameName), 15000);
+              if (wikiResult) {
+                coverUrl = wikiResult.coverUrl;
+                gameTitle = wikiResult.title || gameName;
+                wikiPageUrl = wikiResult.pageUrl;
+                usedSource = 'wikipedia';
+              }
+            }
+          } catch (tgdbErr) {
+            console.error('TGDB error, trying Wikipedia:', tgdbErr);
+            
+            try {
+              const wikiResult = await fetchWithTimeout(getGameCoverFromWikipedia(gameName), 15000);
+              if (wikiResult) {
+                coverUrl = wikiResult.coverUrl;
+                gameTitle = wikiResult.title || gameName;
+                wikiPageUrl = wikiResult.pageUrl;
+                usedSource = 'wikipedia';
+              }
+            } catch (wikiErr) {
+              console.error('All fallbacks failed:', wikiErr);
+              throw new Error('All cover sources failed');
+            }
           }
         }
       }
@@ -148,17 +210,21 @@ export async function GET(request) {
     }
     
     // Return the cover URL with caching headers
-    return NextResponse.json(
-      { 
-        success: true, 
-        coverUrl,
-        source: usedSource,
-        gameTitle: gameTitle || gameName,
-        cached: true,
-        expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-      },
-      { headers: cacheHeaders }
-    );
+    const response = {
+      success: true, 
+      coverUrl,
+      source: usedSource,
+      gameTitle: gameTitle || gameName,
+      cached: true,
+      expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    };
+    
+    // Add Wikipedia page URL if available
+    if (wikiPageUrl) {
+      response.pageUrl = wikiPageUrl;
+    }
+    
+    return NextResponse.json(response, { headers: cacheHeaders });
     
   } catch (error) {
     console.error('Error fetching game cover:', error);

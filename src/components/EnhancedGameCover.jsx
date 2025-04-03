@@ -429,4 +429,150 @@ export default function EnhancedGameCover({
       )}
     </div>
   );
+}
+
+// Update the fetchGameCover function to include Wikipedia option
+export async function fetchGameCover(gameTitle, core, preferredSource = 'auto') {
+  // Skip fetch if parameters are missing
+  if (!gameTitle || !core) return null;
+
+  try {
+    // Generate a cache key based on game title, core, and preferred source
+    const cacheKey = `game_cover_${preferredSource}_${gameTitle.toLowerCase()}_${core}`;
+    
+    // Check in-memory cache first
+    if (coverCache[cacheKey]) {
+      return coverCache[cacheKey];
+    }
+    
+    // Check localStorage cache next (if available)
+    if (typeof localStorage !== 'undefined') {
+      const cachedData = localStorage.getItem(cacheKey);
+      if (cachedData) {
+        try {
+          const parsedData = JSON.parse(cachedData);
+          // Check if cache is expired (7 days)
+          const now = new Date();
+          const cacheTime = new Date(parsedData.timestamp);
+          const cacheAge = now - cacheTime;
+          const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+          
+          if (cacheAge < maxAge) {
+            // Add to memory cache
+            coverCache[cacheKey] = parsedData;
+            return parsedData;
+          }
+        } catch (e) {
+          console.error('Error parsing cached cover:', e);
+          // Invalid cache, continue to fetch
+        }
+      }
+    }
+    
+    // Create an abort controller for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15-second timeout
+    
+    // Use source parameter to specify the API source
+    const queryParams = new URLSearchParams({
+      name: gameTitle,
+      core: core,
+      source: preferredSource
+    });
+    
+    try {
+      const response = await fetch(`/api/game-covers?${queryParams.toString()}`, {
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        // Handle API errors
+        if (response.status === 404) {
+          throw new Error('No cover found for this game');
+        } else if (response.status === 503) {
+          throw new Error('Game cover API is temporarily unavailable');
+        } else {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `API error: ${response.status}`);
+        }
+      }
+      
+      const data = await response.json();
+      
+      if (data && data.coverUrl) {
+        // Create result object
+        const result = {
+          coverUrl: data.coverUrl,
+          title: data.gameTitle || gameTitle,
+          source: data.source || preferredSource,
+          timestamp: new Date().toISOString()
+        };
+        
+        // Check for Wikipedia page URL if available
+        if (data.pageUrl) {
+          result.pageUrl = data.pageUrl;
+        }
+        
+        // Add to in-memory cache
+        coverCache[cacheKey] = result;
+        
+        // Save to localStorage if available
+        if (typeof localStorage !== 'undefined') {
+          try {
+            localStorage.setItem(cacheKey, JSON.stringify(result));
+          } catch (e) {
+            console.warn('Failed to cache game cover:', e);
+          }
+        }
+        
+        return result;
+      } else {
+        throw new Error('No cover URL returned from API');
+      }
+    } catch (error) {
+      clearTimeout(timeoutId);
+      
+      if (error.name === 'AbortError') {
+        throw new Error('Game cover request timed out');
+      }
+      
+      throw error;
+    }
+  } catch (error) {
+    console.error('Error fetching game cover:', error);
+    
+    // If the preferred source is not 'auto' and fails, try 'auto' as fallback
+    if (preferredSource !== 'auto') {
+      console.warn(`Trying 'auto' source as fallback for ${gameTitle}`);
+      try {
+        return await fetchGameCover(gameTitle, core, 'auto');
+      } catch (fallbackError) {
+        console.error('Fallback fetch also failed:', fallbackError);
+        throw fallbackError;
+      }
+    }
+    
+    throw error;
+  }
+}
+
+// Update the SourceSelect component to include Wikipedia
+function SourceSelect({ value, onChange, disabled }) {
+  return (
+    <div className="form-select border border-gray-300 rounded p-2 dark:bg-gray-800 dark:border-gray-600">
+      <select 
+        value={value} 
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        className="bg-transparent w-full outline-none"
+      >
+        <option value="auto">Auto (Try All Sources)</option>
+        <option value="screenscraper">ScreenScraper</option>
+        <option value="tgdb">TheGamesDB</option>
+        <option value="wikipedia">Wikipedia</option>
+      </select>
+    </div>
+  );
 } 
