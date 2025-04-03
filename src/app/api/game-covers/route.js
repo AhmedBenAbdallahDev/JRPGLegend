@@ -12,7 +12,7 @@ export async function GET(request) {
     const searchParams = new URL(request.url).searchParams;
     const gameName = searchParams.get('name');
     const core = searchParams.get('core');
-    const source = searchParams.get('source') || 'tgdb'; // Default to TheGamesDB
+    const source = searchParams.get('source') || 'screenscraper'; // Default to ScreenScraper
     
     if (!gameName || !core) {
       return NextResponse.json(
@@ -21,11 +21,12 @@ export async function GET(request) {
       );
     }
     
-    // Set cache control headers for 7 days
+    // Set cache control headers for 30 days to promote longer browser caching
     const cacheHeaders = {
-      'Cache-Control': 'public, max-age=604800, s-maxage=604800',
-      'CDN-Cache-Control': 'max-age=604800',
-      'Vercel-CDN-Cache-Control': 'max-age=604800'
+      'Cache-Control': 'public, max-age=2592000, s-maxage=2592000, immutable',
+      'CDN-Cache-Control': 'max-age=2592000',
+      'Vercel-CDN-Cache-Control': 'max-age=2592000',
+      'Surrogate-Control': 'max-age=2592000'
     };
     
     // Fetch cover URL from the specified source
@@ -39,15 +40,15 @@ export async function GET(request) {
       if (tgdbData) {
         coverUrl = tgdbData.coverUrl;
       }
-    } else {
-      // Try both sources if unspecified or invalid
-      const tgdbData = await getTGDBData(gameName, core);
-      if (tgdbData) {
-        coverUrl = tgdbData.coverUrl;
-      }
+    } else if (source === 'auto') {
+      // Try ScreenScraper first, then fall back to TheGamesDB
+      coverUrl = await getScreenscraperCoverUrl(gameName, core);
       
       if (!coverUrl) {
-        coverUrl = await getScreenscraperCoverUrl(gameName, core);
+        const tgdbData = await getTGDBData(gameName, core);
+        if (tgdbData) {
+          coverUrl = tgdbData.coverUrl;
+        }
       }
     }
     
@@ -60,7 +61,13 @@ export async function GET(request) {
     
     // Return the cover URL with caching headers
     return NextResponse.json(
-      { success: true, coverUrl },
+      { 
+        success: true, 
+        coverUrl,
+        source: source,
+        cached: true,
+        expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      },
       { headers: cacheHeaders }
     );
     

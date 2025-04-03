@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 
-// Simple in-memory cache for cover URLs to reduce API calls
+// Simple in-memory cache for cover URLs to reduce API calls during the session
 const coverCache = new Map();
 
 export default function EnhancedGameCover({ 
@@ -15,15 +15,72 @@ export default function EnhancedGameCover({
   const [coverUrl, setCoverUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [cacheDate, setCacheDate] = useState(null);
 
   useEffect(() => {
+    // Function to check localStorage cache
+    const checkLocalCache = (cacheKey) => {
+      try {
+        if (typeof window !== 'undefined') {
+          const cachedData = localStorage.getItem(`cover_${cacheKey}`);
+          if (cachedData) {
+            const { url, timestamp } = JSON.parse(cachedData);
+            
+            // Check if cache is less than 7 days old
+            const now = Date.now();
+            const cacheAge = now - timestamp;
+            const cacheMaxAge = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+            
+            if (cacheAge < cacheMaxAge) {
+              setCacheDate(new Date(timestamp).toLocaleDateString());
+              return url;
+            } else {
+              // Cache expired, remove it
+              localStorage.removeItem(`cover_${cacheKey}`);
+            }
+          }
+        }
+        return null;
+      } catch (err) {
+        console.error("Error reading from localStorage:", err);
+        return null;
+      }
+    };
+
+    // Function to save to localStorage cache
+    const saveToLocalCache = (cacheKey, url) => {
+      try {
+        if (typeof window !== 'undefined') {
+          const data = {
+            url,
+            timestamp: Date.now()
+          };
+          localStorage.setItem(`cover_${cacheKey}`, JSON.stringify(data));
+        }
+      } catch (err) {
+        console.error("Error saving to localStorage:", err);
+      }
+    };
+
     // Check if this is a reference to an external API
     if (game.image) {
       if (game.image.startsWith('tgdb:')) {
-        fetchTGDBImage(game.image);
+        const cachedUrl = checkLocalCache(game.image);
+        if (cachedUrl) {
+          setCoverUrl(cachedUrl);
+          coverCache.set(game.image, cachedUrl);
+        } else {
+          fetchTGDBImage(game.image);
+        }
         return;
       } else if (game.image.startsWith('screenscraper:')) {
-        fetchScreenscraperImage(game.image);
+        const cachedUrl = checkLocalCache(game.image);
+        if (cachedUrl) {
+          setCoverUrl(cachedUrl);
+          coverCache.set(game.image, cachedUrl);
+        } else {
+          fetchScreenscraperImage(game.image);
+        }
         return;
       } else if (!game.image.includes('default-image')) {
         // Regular local image
@@ -34,7 +91,16 @@ export default function EnhancedGameCover({
 
     // No valid image, try to fetch from APIs based on title and core
     if (game.title && game.core) {
-      fetchGameCover(source);
+      // Generate a cache key
+      const cacheKey = `${source}:${game.title}:${game.core}`;
+      
+      const cachedUrl = checkLocalCache(cacheKey);
+      if (cachedUrl) {
+        setCoverUrl(cachedUrl);
+        coverCache.set(cacheKey, cachedUrl);
+      } else {
+        fetchGameCover(source);
+      }
     }
   }, [game, source]);
 
@@ -42,7 +108,7 @@ export default function EnhancedGameCover({
   const fetchTGDBImage = async (reference) => {
     // Format: tgdb:GameTitle:core
     try {
-      // Check cache first
+      // Check in-memory cache first
       if (coverCache.has(reference)) {
         setCoverUrl(coverCache.get(reference));
         return;
@@ -66,6 +132,20 @@ export default function EnhancedGameCover({
       if (data.success && data.coverUrl) {
         setCoverUrl(data.coverUrl);
         coverCache.set(reference, data.coverUrl);
+        
+        // Cache in localStorage
+        try {
+          if (typeof window !== 'undefined') {
+            const cacheData = {
+              url: data.coverUrl,
+              timestamp: Date.now()
+            };
+            localStorage.setItem(`cover_${reference}`, JSON.stringify(cacheData));
+            setCacheDate(new Date().toLocaleDateString());
+          }
+        } catch (err) {
+          console.error("Error saving to localStorage:", err);
+        }
       } else {
         throw new Error('Cover not found');
       }
@@ -81,7 +161,7 @@ export default function EnhancedGameCover({
   const fetchScreenscraperImage = async (reference) => {
     // Format: screenscraper:GameTitle:core
     try {
-      // Check cache first
+      // Check in-memory cache first
       if (coverCache.has(reference)) {
         setCoverUrl(coverCache.get(reference));
         return;
@@ -105,6 +185,20 @@ export default function EnhancedGameCover({
       if (data.success && data.coverUrl) {
         setCoverUrl(data.coverUrl);
         coverCache.set(reference, data.coverUrl);
+        
+        // Cache in localStorage
+        try {
+          if (typeof window !== 'undefined') {
+            const cacheData = {
+              url: data.coverUrl,
+              timestamp: Date.now()
+            };
+            localStorage.setItem(`cover_${reference}`, JSON.stringify(cacheData));
+            setCacheDate(new Date().toLocaleDateString());
+          }
+        } catch (err) {
+          console.error("Error saving to localStorage:", err);
+        }
       } else {
         throw new Error('Cover not found');
       }
@@ -126,7 +220,7 @@ export default function EnhancedGameCover({
     // Generate a cache key
     const cacheKey = `${preferredSource}:${game.title}:${game.core}`;
     
-    // Check cache first
+    // Check in-memory cache first
     if (coverCache.has(cacheKey)) {
       setCoverUrl(coverCache.get(cacheKey));
       return;
@@ -142,6 +236,20 @@ export default function EnhancedGameCover({
       if (data.success && data.coverUrl) {
         setCoverUrl(data.coverUrl);
         coverCache.set(cacheKey, data.coverUrl);
+        
+        // Cache in localStorage
+        try {
+          if (typeof window !== 'undefined') {
+            const cacheData = {
+              url: data.coverUrl,
+              timestamp: Date.now()
+            };
+            localStorage.setItem(`cover_${cacheKey}`, JSON.stringify(cacheData));
+            setCacheDate(new Date().toLocaleDateString());
+          }
+        } catch (err) {
+          console.error("Error saving to localStorage:", err);
+        }
       } else {
         setError('Cover not found');
       }
@@ -177,6 +285,12 @@ export default function EnhancedGameCover({
       {error && !coverUrl && (
         <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-accent text-xs p-1 text-center">
           {error}
+        </div>
+      )}
+      
+      {cacheDate && coverUrl && (
+        <div className="absolute top-0 right-0 bg-green-500/80 text-white text-xs px-1 py-0.5 rounded-bl">
+          Cached
         </div>
       )}
     </div>

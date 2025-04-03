@@ -8,6 +8,35 @@ export async function GET(request) {
     const gameName = url.searchParams.get('name');
     const core = url.searchParams.get('core');
     const metadataOnly = url.searchParams.get('metadataOnly') === 'true';
+    const checkStatus = url.searchParams.get('checkStatus') === 'true';
+
+    // Special case for status check
+    if (checkStatus) {
+      try {
+        // Test connection by requesting Mario for NES as a common game
+        const testCover = await getGameCoverUrl('Super Mario Bros', 'nes');
+        return NextResponse.json({
+          success: true,
+          status: 'connected',
+          credentials: {
+            user: process.env.SCREENSCRAPER_USER,
+            // Don't include the actual password in the response
+            hasPassword: !!process.env.SCREENSCRAPER_PASSWORD,
+          },
+          testGameFound: !!testCover
+        });
+      } catch (error) {
+        return NextResponse.json({
+          success: false,
+          status: 'error',
+          message: error.message,
+          credentials: {
+            user: process.env.SCREENSCRAPER_USER,
+            hasPassword: !!process.env.SCREENSCRAPER_PASSWORD,
+          }
+        });
+      }
+    }
 
     if (!gameName || !core) {
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });

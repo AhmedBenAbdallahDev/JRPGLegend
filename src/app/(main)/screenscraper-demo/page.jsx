@@ -1,288 +1,263 @@
 'use client';
-
 import { useState, useEffect } from 'react';
-import GameCover from '@/components/GameCover';
-import { SiNintendo, SiPlaystation, SiSega } from 'react-icons/si';
-import { FaGamepad, FaInfoCircle } from 'react-icons/fa';
+import Image from 'next/image';
 
-export default function ApiDemoPage() {
-  const [gameTitle, setGameTitle] = useState('');
-  const [core, setCore] = useState('snes');
-  const [game, setGame] = useState(null);
-  const [metadata, setMetadata] = useState(null);
+export default function ScreenscraperDemoPage() {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('screenscraper'); // 'screenscraper' or 'thegamesdb'
-  const [coverUrl, setCoverUrl] = useState(null);
-  const [tgdbKeyMissing, setTgdbKeyMissing] = useState(false);
+  const [status, setStatus] = useState(null);
+  const [gameTitle, setGameTitle] = useState('Super Mario Bros');
+  const [platform, setPlatform] = useState('nes');
+  const [imageUrl, setImageUrl] = useState(null);
+  const [cachingInfo, setCachingInfo] = useState(null);
+  const [searchStartTime, setSearchStartTime] = useState(0);
+  const [searchDuration, setSearchDuration] = useState(0);
 
-  // Check if TGDB API is available
+  // Check API status on load
   useEffect(() => {
-    const checkTgdbAvailability = async () => {
-      try {
-        const response = await fetch('/api/thegamesdb/status');
-        const data = await response.json();
-        setTgdbKeyMissing(!data.available);
-      } catch (err) {
-        console.error('Failed to check TGDB availability');
-        setTgdbKeyMissing(true);
-      }
-    };
-    
-    checkTgdbAvailability();
+    checkApiStatus();
   }, []);
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    
-    if (!gameTitle || !core) {
-      setError('Please provide both game title and platform');
-      return;
-    }
-    
-    setLoading(true);
-    setError(null);
-    setCoverUrl(null);
-    
+  const checkApiStatus = async () => {
     try {
-      // Determine which API to use
-      const apiEndpoint = activeTab === 'screenscraper' 
-        ? '/api/screenscraper'
-        : '/api/thegamesdb';
-      
-      const response = await fetch(`${apiEndpoint}?name=${encodeURIComponent(gameTitle)}&core=${core}&metadataOnly=true`);
-      
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
-      }
-      
+      setLoading(true);
+      const response = await fetch('/api/screenscraper?checkStatus=true');
       const data = await response.json();
-      
-      if (data.success && data.metadata) {
-        setMetadata(data.metadata);
-        setCoverUrl(data.coverUrl);
-        setGame({
-          title: gameTitle,
-          core: core,
-          image: activeTab === 'thegamesdb' 
-            ? `tgdb:${gameTitle}:${core}`
-            : `screenscraper:${gameTitle}:${core}`
-        });
-      } else {
-        setError('No game metadata found');
-        setMetadata(null);
-        setGame(null);
-      }
-    } catch (err) {
-      console.error('Error:', err);
-      setError(err.message);
-      setMetadata(null);
-      setGame(null);
+      setStatus(data);
+    } catch (error) {
+      setStatus({ 
+        success: false, 
+        error: error.message 
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  // Get icon for the platform
-  const getPlatformIcon = (slug) => {
-    const iconSize = 24;
+  const checkLocalStorage = () => {
+    try {
+      const cacheKey = `screenscraper:${encodeURIComponent(gameTitle)}:${platform}`;
+      const cached = localStorage.getItem(`cover_${cacheKey}`);
+      if (cached) {
+        const { url, timestamp } = JSON.parse(cached);
+        const date = new Date(timestamp);
+        setCachingInfo({
+          exists: true,
+          url,
+          date: date.toLocaleString(),
+          age: Math.round((Date.now() - timestamp) / (1000 * 60 * 60 * 24)) + ' days'
+        });
+      } else {
+        setCachingInfo({ exists: false });
+      }
+    } catch (error) {
+      setCachingInfo({ exists: false, error: error.message });
+    }
+  };
+
+  const clearCache = () => {
+    try {
+      // Clear only the current game's cache
+      const cacheKey = `screenscraper:${encodeURIComponent(gameTitle)}:${platform}`;
+      localStorage.removeItem(`cover_${cacheKey}`);
+      setCachingInfo({ exists: false, cleared: true });
+      setImageUrl(null);
+    } catch (error) {
+      setCachingInfo({ error: error.message });
+    }
+  };
+
+  const clearAllCache = () => {
+    try {
+      // Find and remove all cover cache items
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith('cover_')) {
+          keysToRemove.push(key);
+        }
+      }
+      
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+      setCachingInfo({ exists: false, cleared: true, count: keysToRemove.length });
+      setImageUrl(null);
+    } catch (error) {
+      setCachingInfo({ error: error.message });
+    }
+  };
+
+  const searchGame = async () => {
+    if (!gameTitle || !platform) return;
     
-    switch (slug) {
-      case 'snes':
-      case 'nes':
-      case 'n64':
-        return <SiNintendo size={iconSize} />;
-      case 'segaMD':
-      case 'segaCD':
-      case 'segaSaturn':
-        return <SiSega size={iconSize} />;
-      case 'psx':
-      case 'psp':
-        return <SiPlaystation size={iconSize} />;
-      default:
-        return <FaGamepad size={iconSize} />;
+    try {
+      setLoading(true);
+      setSearchStartTime(Date.now());
+      
+      checkLocalStorage(); // Check localStorage before making request
+      
+      const response = await fetch(`/api/screenscraper?name=${encodeURIComponent(gameTitle)}&core=${platform}`);
+      const data = await response.json();
+      
+      if (data.success && data.coverUrl) {
+        setImageUrl(data.coverUrl);
+        setSearchDuration(Date.now() - searchStartTime);
+      } else {
+        setImageUrl(null);
+      }
+    } catch (error) {
+      console.error("Error searching game:", error);
+      setImageUrl(null);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="font-display text-2xl md:text-3xl mb-6">Game API Integration Demo</h1>
+    <div className="container mx-auto max-w-4xl px-4 py-8">
+      <h1 className="text-2xl font-bold mb-6">ScreenScraper API Demo</h1>
       
-      {/* API Key Warning Banner */}
-      {tgdbKeyMissing && activeTab === 'thegamesdb' && (
-        <div className="mb-6 p-4 bg-amber-500/20 border border-amber-500 rounded-lg flex items-start gap-3">
-          <FaInfoCircle className="text-amber-500 mt-1 flex-shrink-0" />
-          <div>
-            <h3 className="font-bold text-amber-500">TheGamesDB API Key Missing</h3>
-            <p className="text-sm">
-              TheGamesDB API key is not configured. The system will automatically fall back to ScreenScraper API.
-              To use TheGamesDB API, please <a href="https://thegamesdb.net/member/login.php" target="_blank" rel="noreferrer" className="text-accent underline">register at TheGamesDB</a> and 
-              add your API key to the <code className="bg-black/30 px-1 rounded">TGDB_API_KEY</code> variable in your <code className="bg-black/30 px-1 rounded">.env</code> file.
-            </p>
+      {/* API Status Check */}
+      <div className="mb-8 p-4 bg-main rounded-lg">
+        <h2 className="text-xl font-bold mb-2">API Status</h2>
+        
+        <button 
+          onClick={checkApiStatus} 
+          className="bg-accent-gradient border border-yellow-500 px-4 py-2 rounded mb-4"
+          disabled={loading}
+        >
+          {loading ? 'Checking...' : 'Check API Status'}
+        </button>
+        
+        {status && (
+          <div className="mt-2">
+            <div className={`text-lg font-bold mb-2 ${status.success ? 'text-green-500' : 'text-red-500'}`}>
+              Status: {status.success ? 'Connected' : 'Error'}
+            </div>
+            
+            {status.credentials && (
+              <div className="mb-2">
+                <p>Username: <span className="font-mono">{status.credentials.user}</span></p>
+                <p>Password: {status.credentials.hasPassword ? '✓ Set' : '✗ Missing'}</p>
+              </div>
+            )}
+            
+            {status.message && (
+              <p className="text-red-500">{status.message}</p>
+            )}
           </div>
-        </div>
-      )}
-      
-      {/* Tab Navigation */}
-      <div className="mb-6 border-b border-accent-secondary">
-        <div className="flex space-x-4">
-          <button
-            onClick={() => setActiveTab('screenscraper')}
-            className={`py-2 px-4 ${
-              activeTab === 'screenscraper'
-                ? 'border-b-2 border-accent text-accent'
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            ScreenScraper API
-          </button>
-          <button
-            onClick={() => setActiveTab('thegamesdb')}
-            className={`py-2 px-4 ${
-              activeTab === 'thegamesdb'
-                ? 'border-b-2 border-accent text-accent'
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            TheGamesDB API {tgdbKeyMissing && <span className="ml-1 text-amber-500 text-xs">(Fallback Mode)</span>}
-          </button>
-        </div>
+        )}
       </div>
       
-      <div className="mb-8 bg-main p-6 rounded-xl">
-        <h2 className="text-xl mb-4 flex items-center gap-2">
-          <span className="text-accent">
-            {activeTab === 'screenscraper' ? 'ScreenScraper' : 'TheGamesDB'}
-          </span>
-          <span>Search</span>
-        </h2>
+      {/* Game Search */}
+      <div className="mb-8 p-4 bg-main rounded-lg">
+        <h2 className="text-xl font-bold mb-4">Search Game Cover</h2>
         
-        <form onSubmit={handleSearch} className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
             <label className="block mb-2">Game Title</label>
-            <input
-              type="text"
-              value={gameTitle}
+            <input 
+              type="text" 
+              value={gameTitle} 
               onChange={(e) => setGameTitle(e.target.value)}
-              className="w-full p-3 rounded bg-primary border border-accent-secondary"
-              placeholder="e.g. Super Mario World"
+              className="w-full p-2 bg-primary border border-accent-secondary rounded"
+              placeholder="e.g. Super Mario Bros"
             />
           </div>
           
           <div>
             <label className="block mb-2">Platform</label>
-            <select
-              value={core}
-              onChange={(e) => setCore(e.target.value)}
-              className="w-full p-3 rounded bg-primary border border-accent-secondary"
+            <select 
+              value={platform} 
+              onChange={(e) => setPlatform(e.target.value)}
+              className="w-full p-2 bg-primary border border-accent-secondary rounded"
             >
-              <option value="snes">Super Nintendo (SNES)</option>
-              <option value="nes">Nintendo Entertainment System (NES)</option>
-              <option value="gba">Game Boy Advance (GBA)</option>
-              <option value="n64">Nintendo 64</option>
-              <option value="segaMD">Sega Genesis / Mega Drive</option>
+              <option value="nes">NES</option>
+              <option value="snes">SNES</option>
+              <option value="n64">N64</option>
+              <option value="gb">Game Boy</option>
+              <option value="gbc">Game Boy Color</option>
+              <option value="gba">Game Boy Advance</option>
               <option value="psx">PlayStation</option>
-              <option value="arcade">Arcade</option>
+              <option value="segaMD">Sega Genesis/MegaDrive</option>
             </select>
           </div>
-          
-          <button
-            type="submit"
+        </div>
+        
+        <div className="flex flex-wrap gap-2 mb-4">
+          <button 
+            onClick={searchGame} 
+            className="bg-accent-gradient border border-yellow-500 px-4 py-2 rounded"
             disabled={loading}
-            className="w-full bg-accent text-black p-3 rounded-xl font-medium hover:bg-accent/80 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Searching...' : 'Search'}
           </button>
-        </form>
+          
+          <button 
+            onClick={checkLocalStorage}
+            className="bg-primary border border-accent px-4 py-2 rounded"
+          >
+            Check Cache
+          </button>
+          
+          <button 
+            onClick={clearCache}
+            className="bg-primary border border-red-500 text-red-500 px-4 py-2 rounded"
+          >
+            Clear This Cache
+          </button>
+          
+          <button 
+            onClick={clearAllCache}
+            className="bg-primary border border-red-500 text-red-500 px-4 py-2 rounded"
+          >
+            Clear All Caches
+          </button>
+        </div>
         
-        {error && (
-          <div className="mt-4 p-4 bg-red-500/10 border border-red-500 text-red-500 rounded">
-            {error}
+        {/* Cache Info */}
+        {cachingInfo && (
+          <div className={`mb-4 p-3 rounded ${cachingInfo.exists ? 'bg-green-500/20' : 'bg-yellow-500/20'}`}>
+            <h3 className="font-bold mb-1">Cache Status</h3>
+            {cachingInfo.exists ? (
+              <div>
+                <p>✓ Image found in browser cache</p>
+                <p>Cached on: {cachingInfo.date}</p>
+                <p>Age: {cachingInfo.age}</p>
+              </div>
+            ) : cachingInfo.cleared ? (
+              <p>Cache cleared successfully {cachingInfo.count ? `(${cachingInfo.count} items)` : ''}</p>
+            ) : (
+              <p>No cached version found in browser</p>
+            )}
+            {cachingInfo.error && <p className="text-red-500 mt-1">{cachingInfo.error}</p>}
+          </div>
+        )}
+        
+        {/* Result */}
+        {imageUrl && (
+          <div className="mt-4">
+            <h3 className="font-bold mb-2">Image Found</h3>
+            <p className="mb-2 text-sm">
+              Loaded in: <span className="font-bold">{searchDuration}ms</span>
+              {searchDuration < 50 && <span className="text-green-500 ml-2">(Likely from browser cache!)</span>}
+            </p>
+            <div className="bg-black p-1 rounded max-w-md">
+              <Image 
+                src={imageUrl} 
+                width={300} 
+                height={300}
+                alt={gameTitle}
+                className="max-w-full h-auto rounded"
+              />
+            </div>
           </div>
         )}
       </div>
       
-      {game && metadata && (
-        <div className="grid md:grid-cols-2 gap-8">
-          <div>
-            <h2 className="text-xl mb-4">Game Cover</h2>
-            <div className="w-full max-w-xs">
-              <GameCover 
-                game={game} 
-                width={500} 
-                height={700} 
-                className="w-full aspect-[3/4] object-contain bg-black/20 rounded-lg"
-              />
-              <p className="text-xs text-gray-400 mt-2">
-                Source: {metadata.source || (activeTab === 'screenscraper' ? 'ScreenScraper API' : 'TheGamesDB API')}
-              </p>
-            </div>
-          </div>
-          
-          <div>
-            <h2 className="text-xl mb-4 flex items-center gap-2">
-              Game Metadata
-              <span className="text-accent">
-                {getPlatformIcon(core)}
-              </span>
-            </h2>
-            <div className="bg-main p-6 rounded-xl">
-              <h3 className="text-2xl text-accent mb-2">{metadata.title}</h3>
-              
-              {metadata.description && (
-                <div className="mb-4">
-                  <h4 className="font-bold mb-1">Description</h4>
-                  <p className="text-gray-300">{metadata.description}</p>
-                </div>
-              )}
-              
-              <div className="grid grid-cols-2 gap-4 mt-4">
-                {metadata.developer && (
-                  <div>
-                    <h4 className="font-bold mb-1">Developer</h4>
-                    <p>{metadata.developer}</p>
-                  </div>
-                )}
-                
-                {metadata.publisher && (
-                  <div>
-                    <h4 className="font-bold mb-1">Publisher</h4>
-                    <p>{metadata.publisher}</p>
-                  </div>
-                )}
-                
-                {metadata.releaseDate && (
-                  <div>
-                    <h4 className="font-bold mb-1">Release Date</h4>
-                    <p>{metadata.releaseDate}</p>
-                  </div>
-                )}
-                
-                {metadata.genre && (
-                  <div>
-                    <h4 className="font-bold mb-1">Genre</h4>
-                    <p>{metadata.genre}</p>
-                  </div>
-                )}
-                
-                {metadata.players && (
-                  <div>
-                    <h4 className="font-bold mb-1">Players</h4>
-                    <p>{metadata.players}</p>
-                  </div>
-                )}
-                
-                {metadata.rating && (
-                  <div>
-                    <h4 className="font-bold mb-1">Rating</h4>
-                    <p>{metadata.rating}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <div className="text-sm text-gray-400 mt-8">
+        <p>Note: This demo page demonstrates the browser-side caching system for game cover images.</p>
+        <p>When you search for a game image, it will be cached in your browser's localStorage for up to 7 days.</p>
+        <p>Subsequent requests for the same image will be served from cache without making additional API calls.</p>
+      </div>
     </div>
   );
 } 

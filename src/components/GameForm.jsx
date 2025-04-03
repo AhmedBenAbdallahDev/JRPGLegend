@@ -23,7 +23,7 @@ export default function GameForm({ categories = [] }) {
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
   const [previewImage, setPreviewImage] = useState('');
-  const [selectedApiSource, setSelectedApiSource] = useState('tgdb'); // Default to TheGamesDB
+  const [selectedApiSource, setSelectedApiSource] = useState('screenscraper'); // Default to ScreenScraper
 
   const handleSubmit = async (e) => {
     e.preventDefault();
