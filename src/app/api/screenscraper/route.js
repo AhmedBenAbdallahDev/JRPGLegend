@@ -6,6 +6,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const name = searchParams.get('name');
     const core = searchParams.get('core');
+    const strict = searchParams.get('strict') !== 'false'; // Default to strict
 
     if (!name || !core) {
       return NextResponse.json({
@@ -30,8 +31,44 @@ export async function GET(request) {
       }, { status: 400 });
     }
 
+    console.log(`Searching for game: ${name} on platform: ${platform.name} (ID: ${platform.platformId})`);
     const gameData = await searchGame(name, platform.platformId);
     
+    // Validate that the returned game is for the requested platform
+    if (strict && gameData && gameData.system) {
+      // In strict mode, verify the game's system ID matches what we requested
+      // This comparison isn't exact because ScreenScraper might return a different format
+      // So we check if the platform name is included in the game's system name
+      const returnedSystem = gameData.system.toLowerCase();
+      const requestedSystem = platform.name.toLowerCase();
+      
+      // Check if there's a significant platform mismatch
+      const platformTerms = {
+        'nes': ['nes', 'nintendo entertainment system', 'famicom'],
+        'snes': ['snes', 'super nintendo', 'super famicom'],
+        'genesis': ['genesis', 'mega drive', 'megadrive', 'sega'],
+        'psx': ['playstation', 'psx', 'ps1'],
+        'gb': ['game boy', 'gameboy'],
+      };
+      
+      const expectedTerms = platformTerms[platform.id] || [platform.id];
+      const matchesPlatform = expectedTerms.some(term => returnedSystem.includes(term));
+      
+      if (!matchesPlatform) {
+        console.warn(`Platform mismatch: Expected ${requestedSystem}, got ${returnedSystem}`);
+        // Instead of failing, we'll include a warning in the response
+        gameData.warning = `Platform mismatch: You requested ${platform.name} but the API returned a game for ${gameData.system}`;
+      }
+    }
+    
+    // Debug log the images array
+    if (gameData.images && gameData.images.length > 0) {
+      console.log(`Found ${gameData.images.length} images`);
+      console.log('First image:', gameData.images[0]);
+    } else {
+      console.log('No images found in the response');
+    }
+
     return NextResponse.json({
       success: true,
       gameData

@@ -10,6 +10,18 @@ const nextConfig = {
         protocol: "https",
         hostname: "upload.wikimedia.org",
       },
+      {
+        protocol: "https",
+        hostname: "screenscraper.fr",
+      },
+      {
+        protocol: "https",
+        hostname: "**.screenscraper.fr",
+      },
+      {
+        protocol: "https",
+        hostname: "neoclone.screenscraper.fr",
+      },
     ],
   },
 };

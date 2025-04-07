@@ -2,13 +2,15 @@ import { NextResponse } from 'next/server';
 
 export async function GET() {
   try {
+    // Platform IDs are from ScreenScraper documentation
+    // https://www.screenscraper.fr/api2/systemesListe.php
     const platforms = [
       { id: 'nes', name: 'Nintendo Entertainment System (NES)', platformId: 1 },
       { id: 'snes', name: 'Super Nintendo (SNES)', platformId: 3 },
       { id: 'n64', name: 'Nintendo 64', platformId: 4 },
       { id: 'gba', name: 'Game Boy Advance', platformId: 12 },
       { id: 'nds', name: 'Nintendo DS', platformId: 15 },
-      { id: 'genesis', name: 'Sega Genesis/Mega Drive', platformId: 1 },
+      { id: 'genesis', name: 'Sega Genesis/Mega Drive', platformId: 1 }, // This is incorrect and should be 6
       { id: 'segacd', name: 'Sega CD', platformId: 20 },
       { id: '32x', name: 'Sega 32X', platformId: 19 },
       { id: 'saturn', name: 'Sega Saturn', platformId: 22 },
@@ -29,16 +31,27 @@ export async function GET() {
       { id: 'wonderswancolor', name: 'WonderSwan Color', platformId: 46 },
       { id: 'neogeo', name: 'Neo Geo', platformId: 142 },
       { id: 'neogeocd', name: 'Neo Geo CD', platformId: 70 },
-      { id: 'ngp', name: 'Neo Geo Pocket', platformId: 25 },
+      { id: 'ngp', name: 'Neo Geo Pocket', platformId: 25 }, // This is incorrect and should be 81
       { id: 'ngpc', name: 'Neo Geo Pocket Color', platformId: 82 },
       { id: 'virtualboy', name: 'Virtual Boy', platformId: 11 },
       { id: 'gamegear', name: 'Game Gear', platformId: 21 },
       { id: 'mastersystem', name: 'Sega Master System', platformId: 2 }
     ];
 
+    // Fix incorrect mappings
+    const fixedPlatforms = platforms.map(platform => {
+      if (platform.id === 'genesis') {
+        return { ...platform, platformId: 6 }; // Correct Sega Genesis/Mega Drive ID
+      }
+      if (platform.id === 'ngp') {
+        return { ...platform, platformId: 81 }; // Correct Neo Geo Pocket ID
+      }
+      return platform;
+    });
+
     return NextResponse.json({
       success: true,
-      platforms
+      platforms: fixedPlatforms
     });
   } catch (error) {
     console.error('Error in platforms endpoint:', error);

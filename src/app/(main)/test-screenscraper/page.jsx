@@ -12,6 +12,7 @@ export default function TestScreenScraperPage() {
   const [platforms, setPlatforms] = useState([]);
   const [selectedImageType, setSelectedImageType] = useState('all');
   const [rawResponse, setRawResponse] = useState(null);
+  const [failedImages, setFailedImages] = useState({});
 
   // Fetch platforms on component mount
   useEffect(() => {
@@ -42,10 +43,11 @@ export default function TestScreenScraperPage() {
     setError(null);
     setData(null);
     setRawResponse(null);
+    setFailedImages({});
 
     try {
       // First, get the raw response from the ScreenScraper API
-      const rawResponse = await fetch(`/api/screenscraper?name=${encodeURIComponent(gameName)}&core=${platform}`);
+      const rawResponse = await fetch(`/api/screenscraper?name=${encodeURIComponent(gameName)}&core=${platform}&strict=true`);
       const rawData = await rawResponse.json();
       
       if (!rawResponse.ok) {
@@ -56,6 +58,7 @@ export default function TestScreenScraperPage() {
         throw new Error(rawData.error || 'Failed to fetch game data');
       }
       
+      console.log('API Response:', rawData);
       setRawResponse(rawData);
       setData(rawData); // The raw response already contains the processed game data
     } catch (err) {
@@ -69,35 +72,34 @@ export default function TestScreenScraperPage() {
   // Focus on the most important image types for the user's needs
   const imageTypes = [
     { id: 'all', label: 'All Images' },
-    { id: 'cover', label: 'Cover Images' },
-    { id: 'texture', label: 'Texture Files' },
-    { id: 'box2d', label: 'Box 2D' },
-    { id: 'cartridge', label: 'Cartridge' },
-    { id: 'screenshot', label: 'Screenshots' },
+    { id: 'box', label: 'Box Art' },
+    { id: 'title', label: 'Title Screen' },
+    { id: 'ss', label: 'Screenshot' },
     { id: 'fanart', label: 'Fan Art' },
-    { id: 'banner', label: 'Banners' },
-    { id: 'logo', label: 'Logos' },
-    { id: 'marquee', label: 'Marquees' },
-    { id: 'wheel', label: 'Wheels' },
-    { id: 'video', label: 'Videos' },
-    { id: 'box3d', label: 'Box 3D' },
-    { id: 'media', label: 'Media' }
+    { id: 'mix', label: 'Mix' },
+    { id: 'flyer', label: 'Flyer' },
+    { id: 'support', label: 'Support' },
+    { id: 'maps', label: 'Maps' },
+    { id: 'videos', label: 'Videos' },
+    { id: 'wheels', label: 'Wheels' },
+    { id: 'marquees', label: 'Marquees' }
   ];
 
-  const filterImages = (images) => {
-    if (!images) return [];
-    if (selectedImageType === 'all') return images;
-    
-    return images.filter(img => {
-      const type = img.type?.toLowerCase() || '';
-      return type.includes(selectedImageType);
-    });
+  const handleImageError = (index, url) => {
+    console.error(`Failed to load image at index ${index}: ${url}`);
+    setFailedImages(prev => ({
+      ...prev,
+      [index]: true
+    }));
   };
 
-  const renderImageSection = (title, images, type) => {
+  const renderImageSection = (title, images) => {
     if (!images || images.length === 0) return null;
     
-    const filteredImages = filterImages(images);
+    const filteredImages = selectedImageType === 'all' 
+      ? images 
+      : images.filter(img => (img.type || '').toLowerCase().includes(selectedImageType));
+    
     if (filteredImages.length === 0) return null;
     
     return (
@@ -107,28 +109,32 @@ export default function TestScreenScraperPage() {
           {filteredImages.map((img, index) => (
             <div key={index} className="border border-gray-700 rounded-lg p-4 bg-gray-800 shadow-sm">
               <div className="relative h-48 mb-2">
-                <Image 
-                  src={img.url} 
-                  alt={`${img.type || 'Image'} ${index + 1}`}
-                  fill
-                  className="object-contain"
-                />
+                {!failedImages[index] ? (
+                  <Image 
+                    src={img.url} 
+                    alt={`${img.type || 'Image'} ${index + 1}`}
+                    fill
+                    className="object-contain"
+                    onError={() => handleImageError(index, img.url)}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-red-500">
+                    Image failed to load
+                  </div>
+                )}
               </div>
               <div className="text-sm text-gray-200">
                 <p><strong>Type:</strong> {img.type || 'Unknown'}</p>
-                <p><strong>Region:</strong> {img.region || 'Unknown'}</p>
-                <p><strong>Resolution:</strong> {img.resolution || 'Unknown'}</p>
-                {img.crc && <p><strong>CRC:</strong> {img.crc}</p>}
-                {img.md5 && <p><strong>MD5:</strong> {img.md5}</p>}
-                {img.sha1 && <p><strong>SHA1:</strong> {img.sha1}</p>}
-                <a 
+                <p><strong>URL:</strong> <a 
                   href={img.url} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-blue-400 hover:underline block mt-2"
+                  className="text-blue-400 hover:underline block truncate"
                 >
-                  View Full Size
-                </a>
+                  {img.url}
+                </a></p>
+                <p><strong>Region:</strong> {img.region || 'Unknown'}</p>
+                <p><strong>Resolution:</strong> {img.resolution || 'Unknown'}</p>
               </div>
             </div>
           ))}
@@ -208,15 +214,21 @@ export default function TestScreenScraperPage() {
       
       {rawResponse && (
         <div className="mb-8 bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700">
-          <h2 className="text-2xl font-bold mb-4 text-white">Raw ScreenScraper API Response</h2>
+          <h2 className="text-2xl font-bold mb-4 text-white">Raw API Response</h2>
           <pre className="bg-gray-900 p-4 rounded overflow-auto max-h-96 text-sm text-gray-300 border border-gray-700">
             {JSON.stringify(rawResponse, null, 2)}
           </pre>
         </div>
       )}
       
-      {data && (
+      {data && data.gameData && (
         <div className="space-y-8">
+          {data.gameData.warning && (
+            <div className="bg-yellow-800 text-yellow-200 p-4 rounded-lg border border-yellow-600">
+              <strong>Warning:</strong> {data.gameData.warning}
+            </div>
+          )}
+          
           <div className="bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700">
             <h2 className="text-2xl font-bold mb-4 text-white">Game Information</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-200">
@@ -239,68 +251,106 @@ export default function TestScreenScraperPage() {
             </div>
           </div>
           
-          {/* Display all images from the API response */}
-          {data.gameData && data.gameData.images && data.gameData.images.length > 0 && (
-            <div className="bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700">
-              <h2 className="text-2xl font-bold mb-4 text-white">All Images</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filterImages(data.gameData.images).map((img, index) => (
-                  <div key={index} className="border border-gray-700 rounded-lg p-4 bg-gray-800 shadow-sm">
-                    <div className="relative h-48 mb-2">
-                      <Image 
-                        src={img.url} 
-                        alt={`${img.type || 'Image'} ${index + 1}`}
-                        fill
-                        className="object-contain"
-                      />
-                    </div>
-                    <div className="text-sm text-gray-200">
-                      <p><strong>Type:</strong> {img.type || 'Unknown'}</p>
-                      <p><strong>Region:</strong> {img.region || 'Unknown'}</p>
-                      <p><strong>Resolution:</strong> {img.resolution || 'Unknown'}</p>
-                      {img.crc && <p><strong>CRC:</strong> {img.crc}</p>}
-                      {img.md5 && <p><strong>MD5:</strong> {img.md5}</p>}
-                      {img.sha1 && <p><strong>SHA1:</strong> {img.sha1}</p>}
-                      <a 
-                        href={img.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-blue-400 hover:underline block mt-2"
-                      >
-                        View Full Size
-                      </a>
+          {/* Display direct URLs for box art, title screen, and screenshots */}
+          <div className="bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700">
+            <h2 className="text-2xl font-bold mb-4 text-white">Quick Image Links</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {data.gameData.boxUrl && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-2 text-white">Box Art</h3>
+                  <div className="relative h-48 mb-2 border border-gray-700">
+                    <Image 
+                      src={data.gameData.boxUrl} 
+                      alt="Box Art"
+                      fill
+                      className="object-contain"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
+                    />
+                    <div className="hidden items-center justify-center h-full text-red-500 bg-gray-800">
+                      Image failed to load
                     </div>
                   </div>
-                ))}
-              </div>
+                  <a 
+                    href={data.gameData.boxUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:underline text-sm block truncate"
+                  >
+                    {data.gameData.boxUrl}
+                  </a>
+                </div>
+              )}
+              
+              {data.gameData.titleUrl && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-2 text-white">Title Screen</h3>
+                  <div className="relative h-48 mb-2 border border-gray-700">
+                    <Image 
+                      src={data.gameData.titleUrl} 
+                      alt="Title Screen"
+                      fill
+                      className="object-contain"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
+                    />
+                    <div className="hidden items-center justify-center h-full text-red-500 bg-gray-800">
+                      Image failed to load
+                    </div>
+                  </div>
+                  <a 
+                    href={data.gameData.titleUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:underline text-sm block truncate"
+                  >
+                    {data.gameData.titleUrl}
+                  </a>
+                </div>
+              )}
+              
+              {data.gameData.screenshotUrl && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-2 text-white">Screenshot</h3>
+                  <div className="relative h-48 mb-2 border border-gray-700">
+                    <Image 
+                      src={data.gameData.screenshotUrl} 
+                      alt="Screenshot"
+                      fill
+                      className="object-contain"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
+                    />
+                    <div className="hidden items-center justify-center h-full text-red-500 bg-gray-800">
+                      Image failed to load
+                    </div>
+                  </div>
+                  <a 
+                    href={data.gameData.screenshotUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:underline text-sm block truncate"
+                  >
+                    {data.gameData.screenshotUrl}
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Display all images from the API response */}
+          {data.gameData.images && data.gameData.images.length > 0 && (
+            <div className="bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700">
+              <h2 className="text-2xl font-bold mb-4 text-white">Images ({data.gameData.images.length} found)</h2>
+              {renderImageSection('All Images', data.gameData.images)}
             </div>
           )}
-          
-          {/* Prioritize the most important image types */}
-          {data.gameData && data.gameData.images && data.gameData.images.length > 0 && (
-            <>
-              {renderImageSection('Cover Images', data.gameData.images, 'cover')}
-              {renderImageSection('Texture Files', data.gameData.images, 'texture')}
-              {renderImageSection('Box 2D', data.gameData.images, 'box2d')}
-              {renderImageSection('Cartridge', data.gameData.images, 'cartridge')}
-              {renderImageSection('Screenshots', data.gameData.images, 'screenshot')}
-              {renderImageSection('Fan Art', data.gameData.images, 'fanart')}
-              {renderImageSection('Banners', data.gameData.images, 'banner')}
-              {renderImageSection('Logos', data.gameData.images, 'logo')}
-              {renderImageSection('Marquees', data.gameData.images, 'marquee')}
-              {renderImageSection('Wheels', data.gameData.images, 'wheel')}
-              {renderImageSection('Videos', data.gameData.images, 'video')}
-              {renderImageSection('Box 3D', data.gameData.images, 'box3d')}
-              {renderImageSection('Media', data.gameData.images, 'media')}
-            </>
-          )}
-          
-          <div className="bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700">
-            <h2 className="text-2xl font-bold mb-4 text-white">Processed API Response</h2>
-            <pre className="bg-gray-900 p-4 rounded overflow-auto max-h-96 text-sm text-gray-300 border border-gray-700">
-              {JSON.stringify(data, null, 2)}
-            </pre>
-          </div>
         </div>
       )}
     </div>

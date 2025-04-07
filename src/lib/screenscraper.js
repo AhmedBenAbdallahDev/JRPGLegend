@@ -8,11 +8,11 @@
 // You will need to register for a ScreenScraper account to use their API
 // https://www.screenscraper.fr/
 const SCREENSCRAPER_API_URL = 'https://www.screenscraper.fr/api2';
-const SCREENSCRAPER_DEV_ID = process.env.SCREENSCRAPER_DEV_ID || '';  // Register and get a devid
-const SCREENSCRAPER_DEV_PASSWORD = process.env.SCREENSCRAPER_DEV_PASSWORD || '';  // Register and get a devpassword
-const SCREENSCRAPER_USER = process.env.SCREENSCRAPER_USER || '';  // Your screenscraper username
-const SCREENSCRAPER_PASSWORD = process.env.SCREENSCRAPER_PASSWORD || '';  // Your screenscraper password
-const SCREENSCRAPER_SOFTNAME = process.env.SCREENSCRAPER_SOFTNAME || 'JRPGLegend';  // Your software name
+const SCREENSCRAPER_DEV_ID = process.env.SCREENSCRAPER_DEV_ID;
+const SCREENSCRAPER_DEV_PASSWORD = process.env.SCREENSCRAPER_DEV_PASSWORD;
+const SCREENSCRAPER_USER = process.env.SCREENSCRAPER_USER;
+const SCREENSCRAPER_PASSWORD = process.env.SCREENSCRAPER_PASSWORD;
+const SCREENSCRAPER_SOFTNAME = process.env.SCREENSCRAPER_SOFTNAME || 'JRPGLegend';
 
 // Fetch helper with timeout
 async function fetchWithTimeout(url, options = {}, timeout = 10000) {
@@ -183,10 +183,18 @@ export async function searchGame(name, platformId) {
       throw new Error('Platform ID is required');
     }
 
-    // Construct the API URL using the correct endpoint
-    const apiUrl = `${SCREENSCRAPER_API_URL}/jeuInfos.php?devid=${devId}&devpassword=${devPassword}&softname=${encodeURIComponent(softname)}&output=json&romnom=${encodeURIComponent(name)}&systemeid=${platformId}&ssid=${user}&sspassword=${password}`;
+    console.log(`[ScreenScraper] Using platform ID: ${platformId} (type: ${typeof platformId})`);
+    
+    // Convert platformId to number if it's a string
+    const systemId = parseInt(platformId, 10);
+    if (isNaN(systemId)) {
+      throw new Error(`Invalid platform ID: ${platformId}, must be a number`);
+    }
 
-    console.log(`[ScreenScraper] Fetching game info for ${name} on platform ID ${platformId}`);
+    // Construct the API URL using the correct endpoint
+    const apiUrl = `${SCREENSCRAPER_API_URL}/jeuInfos.php?devid=${devId}&devpassword=${devPassword}&softname=${encodeURIComponent(softname)}&output=json&romnom=${encodeURIComponent(name)}&systemeid=${systemId}&ssid=${user}&sspassword=${password}`;
+
+    console.log(`[ScreenScraper] Fetching game info for ${name} on platform ID ${systemId}`);
     console.log(`[ScreenScraper] URL: ${apiUrl.replace(devPassword, 'REDACTED').replace(password, 'REDACTED')}`);
 
     // Fetch data from ScreenScraper API
@@ -210,6 +218,8 @@ export async function searchGame(name, platformId) {
 
     // Process the response to extract all image types
     const game = data.response.jeu;
+    console.log(`Game ID: ${game.id}, Name: ${game.noms?.[0]?.text || name}`);
+    
     const processedData = {
       id: game.id,
       name: game.noms?.[0]?.text || name,
@@ -226,21 +236,51 @@ export async function searchGame(name, platformId) {
       images: []
     };
 
+    // Debug: Log what media types exist in the response
+    console.log(`Media types in response: ${Object.keys(game).filter(key => 
+      ['medias', 'box', 'video', 'fanart', 'bezel', 'title', 'ss'].includes(key)
+    ).join(', ')}`);
+
     // Extract all image types
+    const processMediaItem = (item, type) => {
+      if (item && item.url) {
+        processedData.images.push({
+          type: type,
+          url: item.url,
+          region: item.region || '',
+          resolution: item.resolution || '',
+          crc: item.crc || '',
+          md5: item.md5 || '',
+          sha1: item.sha1 || ''
+        });
+      }
+    };
+
+    // Process media from different arrays in the response
     if (game.medias && Array.isArray(game.medias)) {
-      game.medias.forEach(media => {
-        if (media.type && media.url) {
-          processedData.images.push({
-            type: media.type,
-            url: media.url,
-            region: media.region,
-            resolution: media.resolution,
-            crc: media.crc,
-            md5: media.md5,
-            sha1: media.sha1
-          });
-        }
-      });
+      console.log(`Found ${game.medias.length} items in medias array`);
+      game.medias.forEach(media => processMediaItem(media, media.type || 'media'));
+    }
+
+    // Process specific media types that might be separate
+    ['box', 'support', 'video', 'fanart', 'bezel', 'title', 'ss', 'sstitle', 'steamgrid'].forEach(mediaType => {
+      if (game[mediaType] && Array.isArray(game[mediaType])) {
+        console.log(`Found ${game[mediaType].length} items of type ${mediaType}`);
+        game[mediaType].forEach(item => processMediaItem(item, mediaType));
+      }
+    });
+
+    console.log(`Total processed images: ${processedData.images.length}`);
+    
+    // Add direct URLs for common image types for convenience
+    if (processedData.images.length > 0) {
+      const boxImage = processedData.images.find(img => img.type === 'box');
+      const titleImage = processedData.images.find(img => img.type === 'title');
+      const ssImage = processedData.images.find(img => img.type === 'ss');
+      
+      if (boxImage) processedData.boxUrl = boxImage.url;
+      if (titleImage) processedData.titleUrl = titleImage.url;
+      if (ssImage) processedData.screenshotUrl = ssImage.url;
     }
 
     return processedData;
@@ -251,31 +291,67 @@ export async function searchGame(name, platformId) {
 }
 
 /**
- * Gets the ScreenScraper platform ID for a given EmulatorJS core
- * 
- * @param {string} core - The EmulatorJS core name (snes, nes, gba, etc.)
- * @returns {number} - The corresponding ScreenScraper platform ID
+ * Get ScreenScraper platform ID from emulator core
+ * @param {string} core - The EmulatorJS core ID 
+ * @returns {number|null} The ScreenScraper platform ID
  */
 export function getPlatformId(core) {
   // Map EmulatorJS cores to ScreenScraper platform IDs
+  // Full list available at: https://www.screenscraper.fr/api2/systemesListe.php
   const platformMap = {
-    'snes': 3,     // Super Nintendo
-    'nes': 1,      // Nintendo Entertainment System
-    'gba': 12,     // Game Boy Advance
-    'gb': 9,       // Game Boy
-    'gbc': 10,     // Game Boy Color
-    'n64': 14,     // Nintendo 64
-    'nds': 15,     // Nintendo DS
-    'segaMD': 1,   // Sega Genesis/Mega Drive
-    'segaCD': 20,  // Sega CD
-    'segaSaturn': 22, // Sega Saturn
-    'arcade': 75,  // Arcade (MAME)
-    'psx': 57,     // PlayStation 1
-    'psp': 61,     // PlayStation Portable
-    // Add more mappings as needed
+    'nes': 1,
+    'snes': 3,
+    'n64': 4,
+    'gba': 12,
+    'nds': 15,
+    'genesis': 6, // Was incorrectly 1 (NES), fixed to 6 (Sega Genesis/Mega Drive)
+    'segacd': 20,
+    '32x': 19,
+    'saturn': 22,
+    'psx': 57,
+    'ps2': 58,
+    'psp': 61,
+    'arcade': 75,
+    'gb': 9,
+    'gbc': 10,
+    'atari2600': 25,
+    'atari5200': 26,
+    'atari7800': 27,
+    'lynx': 28,
+    'jaguar': 29,
+    'tg16': 31,
+    'pcenginecd': 32,
+    'wonderswan': 45,
+    'wonderswancolor': 46,
+    'neogeo': 142,
+    'neogeocd': 70,
+    'ngp': 81, // Was incorrectly 25 (Atari 2600), fixed to 81 (Neo Geo Pocket)
+    'ngpc': 82,
+    'virtualboy': 11,
+    'gamegear': 21,
+    'mastersystem': 2,
+    // Add more as needed
   };
+
+  // Also map some common aliases
+  const aliases = {
+    'megadrive': 'genesis',
+    'md': 'genesis',
+    'sega': 'genesis',
+    'segagenesis': 'genesis',
+    'famicom': 'nes',
+    'gb': 'gameboy',
+    'nintendo': 'nes'
+    // Add more as needed
+  };
+
+  // Use the alias if available, otherwise use the core directly
+  const normalizedCore = aliases[core.toLowerCase()] || core.toLowerCase();
+  const platformId = platformMap[normalizedCore];
   
-  return platformMap[core] || 0;
+  console.log(`[ScreenScraper] Mapped core '${core}' to platform ID: ${platformId}`);
+  
+  return platformId || null;
 }
 
 /**
@@ -286,21 +362,40 @@ export function getPlatformId(core) {
  */
 export async function getGameCoverUrl(name, core) {
   try {
-    // Get platform ID mapping
-    const response = await fetch('/api/screenscraper/platforms');
-    const data = await response.json();
+    // This function can be called from the client side (browser) or server side
+    // If called from client side, we need to fetch platforms from the API
+    // If called from server side, we can use the internal function
     
-    if (!data.success) {
-      throw new Error('Failed to fetch platform mappings');
-    }
+    let platformId;
     
-    const platform = data.platforms.find(p => p.id === core);
-    if (!platform) {
-      throw new Error(`Unsupported platform: ${core}`);
+    // Check if we're running in a browser (client component)
+    const isClient = typeof window !== 'undefined';
+    
+    if (isClient) {
+      // Client-side: fetch platforms from API
+      const response = await fetch('/api/screenscraper/platforms');
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error('Failed to fetch platform mappings');
+      }
+      
+      const platform = data.platforms.find(p => p.id === core);
+      if (!platform) {
+        throw new Error(`Unsupported platform: ${core}`);
+      }
+      
+      platformId = platform.platformId;
+    } else {
+      // Server-side: use direct mapping
+      platformId = getPlatformId(core);
+      if (!platformId) {
+        throw new Error(`Unsupported platform: ${core}`);
+      }
     }
 
     // Search for the game using the platform ID
-    const gameData = await searchGame(name, platform.platformId);
+    const gameData = await searchGame(name, platformId);
     return gameData;
   } catch (error) {
     console.error('Error in getGameCoverUrl:', error);
