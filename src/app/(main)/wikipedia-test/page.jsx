@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { FiSearch, FiExternalLink } from 'react-icons/fi';
 
-export default function WikipediaTestPage() {
+export default function WikimediaTestPage() {
   const [loading, setLoading] = useState(false);
   const [gameTitle, setGameTitle] = useState('');
   const [searchResults, setSearchResults] = useState(null);
@@ -29,7 +29,7 @@ export default function WikipediaTestPage() {
       
       setSearchResults(data);
     } catch (err) {
-      console.error('Wikipedia search error:', err);
+      console.error('Wikimedia search error:', err);
       setError(err.message || 'An error occurred while fetching the cover image');
     } finally {
       setLoading(false);
@@ -38,7 +38,7 @@ export default function WikipediaTestPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">Wikipedia Cover Test</h1>
+      <h1 className="text-2xl font-bold mb-6">Wikimedia Cover Test</h1>
       
       <form onSubmit={handleSearch} className="mb-8 flex gap-2">
         <input

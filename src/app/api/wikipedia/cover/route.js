@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 /**
- * API Route for Wikipedia cover image lookup
+ * API Route for Wikipedia cover image lookup using authenticated API
  * 
  * @param {Request} request - The incoming request object
  * @returns {NextResponse} - API response with cover data or error
@@ -18,32 +18,50 @@ export async function GET(request) {
     );
   }
   
+  // Authentication credentials from environment variables
+  const AUTH_TOKEN = process.env.WIKIMEDIA_AUTH_TOKEN;
+  const CLIENT_ID = process.env.WIKIMEDIA_CLIENT_ID;
+  
+  if (!AUTH_TOKEN || !CLIENT_ID) {
+    console.error('[WIKIMEDIA] Missing API credentials in environment variables');
+    return NextResponse.json(
+      { error: 'API configuration error' },
+      { status: 500 }
+    );
+  }
+  
   try {
-    // Make a request to the Wikipedia API
-    const wikiApiUrl = 'https://en.wikipedia.org/w/api.php';
+    // Log API request attempt
+    console.log(`[WIKIMEDIA] Searching for game cover: ${game}`);
     
-    // Step 1: Search for the game on Wikipedia
+    // Make a request to the Wikimedia API with authentication
+    const wikiApiUrl = 'https://api.wikimedia.org/core/v1/wikipedia/en/search/page';
+    
+    // Step 1: Search for the game with authenticated API
     const searchParams = new URLSearchParams({
-      action: 'query',
-      list: 'search',
-      srsearch: `${game} video game`,
-      format: 'json',
-      srlimit: '1',
-      origin: '*',
+      q: `${game} video game`,
+      limit: '1'
     });
     
-    const searchResponse = await fetch(`${wikiApiUrl}?${searchParams.toString()}`);
+    const searchResponse = await fetch(`${wikiApiUrl}?${searchParams.toString()}`, {
+      headers: {
+        'Authorization': `Bearer ${AUTH_TOKEN}`,
+        'Api-User-Agent': 'JRPGLegend/1.0'
+      }
+    });
     
     if (!searchResponse.ok) {
+      console.error(`[WIKIMEDIA] Search API error: ${searchResponse.status}`);
       return NextResponse.json(
-        { error: `Wikipedia search API error: ${searchResponse.status}` },
+        { error: `Wikimedia search API error: ${searchResponse.status}` },
         { status: searchResponse.status }
       );
     }
     
     const searchData = await searchResponse.json();
     
-    if (!searchData.query || !searchData.query.search || searchData.query.search.length === 0) {
+    if (!searchData.pages || searchData.pages.length === 0) {
+      console.warn(`[WIKIMEDIA] No page found for game: ${game}`);
       return NextResponse.json(
         { error: 'No Wikipedia page found for this game' },
         { status: 404 }
@@ -51,65 +69,62 @@ export async function GET(request) {
     }
     
     // Get the first search result
-    const pageTitle = searchData.query.search[0].title;
+    const page = searchData.pages[0];
     
-    // Step 2: Get page details with images
-    const pageParams = new URLSearchParams({
-      action: 'query',
-      titles: pageTitle,
-      prop: 'pageimages|info|extracts',
-      pithumbsize: '1000', // Request large thumbnail
-      format: 'json',
-      exintro: '1',
-      explaintext: '1',
-      inprop: 'url',
-      origin: '*',
+    // Step 2: Get page thumbnail using separate API call
+    const pageApiUrl = `https://api.wikimedia.org/core/v1/wikipedia/en/page/${encodeURIComponent(page.key)}/thumbnail`;
+    
+    const thumbnailResponse = await fetch(pageApiUrl, {
+      headers: {
+        'Authorization': `Bearer ${AUTH_TOKEN}`,
+        'Api-User-Agent': 'JRPGLegend/1.0'
+      }
     });
     
-    const pageResponse = await fetch(`${wikiApiUrl}?${pageParams.toString()}`);
-    
-    if (!pageResponse.ok) {
+    if (!thumbnailResponse.ok) {
+      console.error(`[WIKIMEDIA] Thumbnail API error: ${thumbnailResponse.status}`);
       return NextResponse.json(
-        { error: `Wikipedia page API error: ${pageResponse.status}` },
-        { status: pageResponse.status }
+        { error: `Wikimedia thumbnail API error: ${thumbnailResponse.status}` },
+        { status: thumbnailResponse.status }
       );
     }
     
-    const pageData = await pageResponse.json();
+    const thumbnailData = await thumbnailResponse.json();
     
-    if (!pageData.query || !pageData.query.pages) {
-      return NextResponse.json(
-        { error: 'Failed to retrieve page data' },
-        { status: 404 }
-      );
-    }
-    
-    // Get the page (the API returns an object with page IDs as keys)
-    const pageId = Object.keys(pageData.query.pages)[0];
-    const page = pageData.query.pages[pageId];
-    
-    if (pageId === '-1' || !page) {
-      return NextResponse.json(
-        { error: 'Wikipedia page not found' },
-        { status: 404 }
-      );
-    }
-    
-    // Check if the page has a thumbnail
-    if (!page.thumbnail || !page.thumbnail.source) {
+    if (!thumbnailData.url) {
+      console.warn(`[WIKIMEDIA] No thumbnail found for page: ${page.key}`);
       return NextResponse.json(
         { error: 'No cover image found on Wikipedia page' },
         { status: 404 }
       );
     }
     
+    // Step 3: Get page summary for description
+    const summaryApiUrl = `https://api.wikimedia.org/core/v1/wikipedia/en/page/${encodeURIComponent(page.key)}/summary`;
+    
+    const summaryResponse = await fetch(summaryApiUrl, {
+      headers: {
+        'Authorization': `Bearer ${AUTH_TOKEN}`,
+        'Api-User-Agent': 'JRPGLegend/1.0'
+      }
+    });
+    
+    let extract = '';
+    if (summaryResponse.ok) {
+      const summaryData = await summaryResponse.json();
+      extract = summaryData.extract || '';
+    }
+    
+    // Log successful API response
+    console.log(`[WIKIMEDIA] Successfully retrieved cover for: ${game}`);
+    
     // Return the cover URL and page info
     return NextResponse.json({
-      coverUrl: page.thumbnail.source,
+      coverUrl: thumbnailData.url,
       title: page.title,
-      source: 'wikipedia',
-      pageUrl: page.fullurl || `https://en.wikipedia.org/wiki/${encodeURIComponent(page.title.replace(/ /g, '_'))}`,
-      extract: page.extract ? page.extract.substring(0, 300) + '...' : undefined,
+      source: 'wikimedia',
+      pageUrl: `https://en.wikipedia.org/wiki/${encodeURIComponent(page.key)}`,
+      extract: extract.substring(0, 300) + (extract.length > 300 ? '...' : ''),
       cached: true,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
     }, {
@@ -120,9 +135,9 @@ export async function GET(request) {
     });
     
   } catch (error) {
-    console.error('Wikipedia cover API error:', error);
+    console.error('[WIKIMEDIA] API error:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch game cover from Wikipedia' },
+      { error: error.message || 'Failed to fetch game cover from Wikimedia' },
       { status: 500 }
     );
   }

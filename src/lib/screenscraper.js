@@ -12,6 +12,7 @@ const SCREENSCRAPER_DEV_ID = process.env.SCREENSCRAPER_DEV_ID || '';  // Registe
 const SCREENSCRAPER_DEV_PASSWORD = process.env.SCREENSCRAPER_DEV_PASSWORD || '';  // Register and get a devpassword
 const SCREENSCRAPER_USER = process.env.SCREENSCRAPER_USER || '';  // Your screenscraper username
 const SCREENSCRAPER_PASSWORD = process.env.SCREENSCRAPER_PASSWORD || '';  // Your screenscraper password
+const SCREENSCRAPER_SOFTNAME = process.env.SCREENSCRAPER_SOFTNAME || 'JRPGLegend';  // Your software name
 
 // Fetch helper with timeout
 async function fetchWithTimeout(url, options = {}, timeout = 10000) {
@@ -45,7 +46,7 @@ async function fetchWithTimeout(url, options = {}, timeout = 10000) {
 export async function checkApiStatus() {
   try {
     // Check if required credentials are present
-    const hasCredentials = !!(SCREENSCRAPER_USER && SCREENSCRAPER_PASSWORD);
+    const hasCredentials = !!(SCREENSCRAPER_USER && SCREENSCRAPER_PASSWORD && SCREENSCRAPER_DEV_ID && SCREENSCRAPER_DEV_PASSWORD);
     
     if (!hasCredentials) {
       return {
@@ -54,14 +55,17 @@ export async function checkApiStatus() {
         credentials: {
           user: !!SCREENSCRAPER_USER,
           hasPassword: !!SCREENSCRAPER_PASSWORD,
-          devId: !!SCREENSCRAPER_DEV_ID
+          devId: !!SCREENSCRAPER_DEV_ID,
+          hasDevPassword: !!SCREENSCRAPER_DEV_PASSWORD
         }
       };
     }
     
     // Try to fetch a very common game as a test
     const platformId = getPlatformId('nes');
-    const url = `${SCREENSCRAPER_API_URL}/jeuInfos.php?devid=${SCREENSCRAPER_DEV_ID}&devpassword=${SCREENSCRAPER_DEV_PASSWORD}&softname=emulatorjs&output=json&romnom=${encodeURIComponent('Super Mario Bros')}&systemeid=${platformId}&ssid=${SCREENSCRAPER_USER}&sspassword=${SCREENSCRAPER_PASSWORD}`;
+    const url = `${SCREENSCRAPER_API_URL}/jeuInfos.php?devid=${encodeURIComponent(SCREENSCRAPER_DEV_ID)}&devpassword=${encodeURIComponent(SCREENSCRAPER_DEV_PASSWORD)}&softname=${encodeURIComponent(SCREENSCRAPER_SOFTNAME)}&output=json&romnom=${encodeURIComponent('Super Mario Bros')}&systemeid=${platformId}&ssid=${encodeURIComponent(SCREENSCRAPER_USER)}&sspassword=${encodeURIComponent(SCREENSCRAPER_PASSWORD)}`;
+    
+    console.log(`[ScreenScraper] Testing API with URL: ${url.replace(SCREENSCRAPER_DEV_PASSWORD, 'REDACTED').replace(SCREENSCRAPER_PASSWORD, 'REDACTED')}`);
     
     const response = await fetchWithTimeout(url, {}, 8000); // 8 second timeout for status check
     
@@ -84,7 +88,9 @@ export async function checkApiStatus() {
         httpStatus: response.status,
         credentials: {
           user: !!SCREENSCRAPER_USER,
-          hasPassword: !!SCREENSCRAPER_PASSWORD
+          hasPassword: !!SCREENSCRAPER_PASSWORD,
+          devId: !!SCREENSCRAPER_DEV_ID,
+          hasDevPassword: !!SCREENSCRAPER_DEV_PASSWORD
         }
       };
     }
@@ -100,7 +106,9 @@ export async function checkApiStatus() {
           message: `API error: ${data.error}`,
           credentials: {
             user: !!SCREENSCRAPER_USER,
-            hasPassword: !!SCREENSCRAPER_PASSWORD
+            hasPassword: !!SCREENSCRAPER_PASSWORD,
+            devId: !!SCREENSCRAPER_DEV_ID,
+            hasDevPassword: !!SCREENSCRAPER_DEV_PASSWORD
           }
         };
       }
@@ -114,7 +122,9 @@ export async function checkApiStatus() {
         gameFound,
         credentials: {
           user: !!SCREENSCRAPER_USER,
-          hasPassword: !!SCREENSCRAPER_PASSWORD
+          hasPassword: !!SCREENSCRAPER_PASSWORD,
+          devId: !!SCREENSCRAPER_DEV_ID,
+          hasDevPassword: !!SCREENSCRAPER_DEV_PASSWORD
         }
       };
     } catch (parseError) {
@@ -123,7 +133,9 @@ export async function checkApiStatus() {
         message: `Failed to parse API response: ${parseError.message}`,
         credentials: {
           user: !!SCREENSCRAPER_USER,
-          hasPassword: !!SCREENSCRAPER_PASSWORD
+          hasPassword: !!SCREENSCRAPER_PASSWORD,
+          devId: !!SCREENSCRAPER_DEV_ID,
+          hasDevPassword: !!SCREENSCRAPER_DEV_PASSWORD
         }
       };
     }
@@ -133,7 +145,9 @@ export async function checkApiStatus() {
       message: error.message || 'Unknown error checking API status',
       credentials: {
         user: !!SCREENSCRAPER_USER,
-        hasPassword: !!SCREENSCRAPER_PASSWORD
+        hasPassword: !!SCREENSCRAPER_PASSWORD,
+        devId: !!SCREENSCRAPER_DEV_ID,
+        hasDevPassword: !!SCREENSCRAPER_DEV_PASSWORD
       }
     };
   }
@@ -142,48 +156,97 @@ export async function checkApiStatus() {
 /**
  * Searches for a game in the ScreenScraper database
  * 
- * @param {string} gameName - The name of the game to search for
- * @param {string} platform - The system/platform ID (use getPlatformId function)
+ * @param {string} name - The name of the game to search for
+ * @param {string} platformId - The system/platform ID (use getPlatformId function)
  * @returns {Promise<Object>} - The game data response
  */
-export async function searchGame(gameName, platform) {
+export async function searchGame(name, platformId) {
   try {
-    // Check if required credentials are present
-    if (!SCREENSCRAPER_USER || !SCREENSCRAPER_PASSWORD) {
-      throw new Error('ScreenScraper credentials missing. Check your environment variables.');
+    // Get API credentials from environment variables
+    const devId = process.env.SCREENSCRAPER_DEV_ID;
+    const devPassword = process.env.SCREENSCRAPER_DEV_PASSWORD;
+    const user = process.env.SCREENSCRAPER_USER;
+    const password = process.env.SCREENSCRAPER_PASSWORD;
+    const softname = process.env.SCREENSCRAPER_SOFTNAME || 'JRPGLegend';
+
+    // Validate credentials
+    if (!devId || !devPassword || !user || !password) {
+      throw new Error('Missing ScreenScraper API credentials in environment variables');
     }
-    
-    const url = `${SCREENSCRAPER_API_URL}/jeuInfos.php?devid=${SCREENSCRAPER_DEV_ID}&devpassword=${SCREENSCRAPER_DEV_PASSWORD}&softname=emulatorjs&output=json&romnom=${encodeURIComponent(gameName)}&systemeid=${platform}&ssid=${SCREENSCRAPER_USER}&sspassword=${SCREENSCRAPER_PASSWORD}`;
-    
-    const response = await fetchWithTimeout(url);
+
+    // Validate required parameters
+    if (!name) {
+      throw new Error('Game name is required');
+    }
+
+    if (!platformId) {
+      throw new Error('Platform ID is required');
+    }
+
+    // Construct the API URL using the correct endpoint
+    const apiUrl = `${SCREENSCRAPER_API_URL}/jeuInfos.php?devid=${devId}&devpassword=${devPassword}&softname=${encodeURIComponent(softname)}&output=json&romnom=${encodeURIComponent(name)}&systemeid=${platformId}&ssid=${user}&sspassword=${password}`;
+
+    console.log(`[ScreenScraper] Fetching game info for ${name} on platform ID ${platformId}`);
+    console.log(`[ScreenScraper] URL: ${apiUrl.replace(devPassword, 'REDACTED').replace(password, 'REDACTED')}`);
+
+    // Fetch data from ScreenScraper API
+    const response = await fetch(apiUrl);
     
     if (!response.ok) {
-      if (response.status === 429) {
-        throw new Error('ScreenScraper API rate limit exceeded. Please try again later.');
-      } else if (response.status === 401 || response.status === 403) {
-        throw new Error('ScreenScraper API authentication failed. Check your credentials.');
-      } else if (response.status === 504) {
-        throw new Error('ScreenScraper API gateway timeout. The service might be experiencing high load.');
-      } else {
-        throw new Error(`ScreenScraper API error: ${response.status}`);
-      }
+      throw new Error(`ScreenScraper API responded with status: ${response.status}`);
     }
     
-    try {
-      const data = await response.json();
-      
-      // Check for API-level errors
-      if (data.error) {
-        throw new Error(`ScreenScraper API error: ${data.error}`);
-      }
-      
-      return data;
-    } catch (parseError) {
-      throw new Error(`Failed to parse ScreenScraper API response: ${parseError.message}`);
+    const data = await response.json();
+
+    // Check if the API returned an error
+    if (data.error) {
+      throw new Error(data.error || 'ScreenScraper API returned an error');
     }
+
+    // Check if game data exists
+    if (!data.response || !data.response.jeu) {
+      throw new Error('No game data found');
+    }
+
+    // Process the response to extract all image types
+    const game = data.response.jeu;
+    const processedData = {
+      id: game.id,
+      name: game.noms?.[0]?.text || name,
+      system: game.systeme?.text || '',
+      region: game.region?.text || '',
+      publisher: game.editeur?.text || '',
+      developer: game.developpeur?.text || '',
+      players: game.joueurs?.text || '',
+      rating: game.note?.text || '',
+      releaseDate: game.dates?.[0]?.text || '',
+      genre: game.genres?.map(g => g.text).join(', ') || '',
+      perspective: game.perspectives?.map(p => p.text).join(', ') || '',
+      description: game.synopsis?.text || '',
+      images: []
+    };
+
+    // Extract all image types
+    if (game.medias && Array.isArray(game.medias)) {
+      game.medias.forEach(media => {
+        if (media.type && media.url) {
+          processedData.images.push({
+            type: media.type,
+            url: media.url,
+            region: media.region,
+            resolution: media.resolution,
+            crc: media.crc,
+            md5: media.md5,
+            sha1: media.sha1
+          });
+        }
+      });
+    }
+
+    return processedData;
   } catch (error) {
-    console.error('Error fetching game data from ScreenScraper:', error);
-    throw error; // Propagate the error for better handling upstream
+    console.error('Error in searchGame:', error);
+    throw error;
   }
 }
 
@@ -197,7 +260,7 @@ export function getPlatformId(core) {
   // Map EmulatorJS cores to ScreenScraper platform IDs
   const platformMap = {
     'snes': 3,     // Super Nintendo
-    'nes': 3,      // Nintendo Entertainment System
+    'nes': 1,      // Nintendo Entertainment System
     'gba': 12,     // Game Boy Advance
     'gb': 9,       // Game Boy
     'gbc': 10,     // Game Boy Color
@@ -216,58 +279,32 @@ export function getPlatformId(core) {
 }
 
 /**
- * Fetches game cover art from ScreenScraper
- * 
- * @param {string} gameName - The name of the game
- * @param {string} core - The EmulatorJS core being used (snes, nes, etc.)
- * @returns {Promise<string>} - The URL to the game cover image
+ * Gets the cover URL for a game from ScreenScraper
+ * @param {string} name - The name of the game to search for
+ * @param {string} core - The emulator core/platform ID
+ * @returns {Promise<Object>} - The game data response
  */
-export async function getGameCoverUrl(gameName, core) {
+export async function getGameCoverUrl(name, core) {
   try {
-    if (!gameName || !core) {
-      throw new Error('Game name and core are required');
+    // Get platform ID mapping
+    const response = await fetch('/api/screenscraper/platforms');
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error('Failed to fetch platform mappings');
     }
     
-    const platformId = getPlatformId(core);
-    if (!platformId) {
-      throw new Error(`Unsupported platform for core: ${core}`);
+    const platform = data.platforms.find(p => p.id === core);
+    if (!platform) {
+      throw new Error(`Unsupported platform: ${core}`);
     }
-    
-    const gameData = await searchGame(gameName, platformId);
-    
-    if (!gameData || !gameData.response) {
-      throw new Error('Invalid response from ScreenScraper API');
-    }
-    
-    if (!gameData.response.jeu) {
-      // Game not found, but API responded
-      return null;
-    }
-    
-    // Get box/cover art - preferring front boxart
-    const mediaData = gameData.response.jeu.medias;
-    
-    if (!mediaData) {
-      // No media available for this game
-      return null;
-    }
-    
-    // Try to find the box front image (type 1 in ScreenScraper)
-    const boxFront = mediaData.find(media => media.type === 'box-2D' && media.region === 'eu') || 
-                     mediaData.find(media => media.type === 'box-2D' && media.region === 'us') ||
-                     mediaData.find(media => media.type === 'box-2D');
-    
-    if (boxFront && boxFront.url) {
-      return boxFront.url;
-    }
-    
-    // Fallback to screenshot if no boxart
-    const screenshot = mediaData.find(media => media.type === 'ss');
-    return screenshot ? screenshot.url : null;
-    
+
+    // Search for the game using the platform ID
+    const gameData = await searchGame(name, platform.platformId);
+    return gameData;
   } catch (error) {
-    console.error(`Error fetching game cover for ${gameName} (${core}):`, error);
-    throw error; // Propagate the error for better handling upstream
+    console.error('Error in getGameCoverUrl:', error);
+    throw error;
   }
 }
 

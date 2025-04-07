@@ -1,5 +1,5 @@
 /**
- * Vercel API route for fetching game cover images from Wikipedia
+ * Vercel API route for fetching game cover images from Wikimedia
  */
 
 // CORS headers for the API
@@ -38,6 +38,13 @@ export default async function handler(req, res) {
     
     const apiUrl = `${baseUrl}/api/wikipedia/cover?game=${encodeURIComponent(game)}`;
     
+    // Ensure environment variables are available
+    if (!process.env.WIKIMEDIA_AUTH_TOKEN || !process.env.WIKIMEDIA_CLIENT_ID) {
+      return res.status(500).json({ 
+        error: 'API configuration error: Missing Wikimedia credentials' 
+      });
+    }
+    
     const response = await fetch(apiUrl);
     const data = await response.json();
     
@@ -47,9 +54,9 @@ export default async function handler(req, res) {
     // Return the result
     return res.status(response.status).json(data);
   } catch (error) {
-    console.error('Wikipedia cover API error:', error);
+    console.error('Wikimedia cover API error:', error);
     return res.status(500).json({ 
-      error: 'Failed to fetch game cover from Wikipedia' 
+      error: 'Failed to fetch game cover from Wikimedia' 
     });
   }
 }

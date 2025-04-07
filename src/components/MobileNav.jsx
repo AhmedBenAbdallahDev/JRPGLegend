@@ -132,9 +132,9 @@ export default function MobileNav() {
             </li>
             <li>
               <a
-                href="/screenscraper-test"
+                href="/test-screenscraper"
                 className={`text-sm tracking-wide flex gap-2 items-center p-1 px-2 ${
-                  activeSegment === "/screenscraper-test"
+                  activeSegment === "/test-screenscraper"
                     ? "active bg-primary rounded-md"
                     : "incative hover:bg-primary rounded-md"
                 }`}
