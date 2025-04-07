@@ -19,12 +19,22 @@ A powerful retro gaming platform built with Next.js, offering seamless emulation
 
 - Node.js 16+
 - npm or yarn
-- API keys for external services (see Environment Setup)
+- API keys for:
+  - ScreenScraper (https://www.screenscraper.fr/)
+  - TheGamesDB (https://thegamesdb.net/)
+  - Wikimedia API
+  - Cloudinary account
+  - Neon database
 
 ### Environment Setup
 
-Create a `.env` file with the following configuration:
+1. Clone the repository:
+```bash
+git clone https://github.com/AhmedBenAbdallahDev/JRPGLegend.git
+cd JRPGLegend
+```
 
+2. Create a `.env` file with these required variables:
 ```env
 # Database Connection (PostgreSQL, for example Neon)
 DATABASE_URL="your_neon_database_url"
@@ -76,7 +86,7 @@ npm install
 3. Initialize the database:
 ```bash
 npx prisma migrate dev
-npx prisma db seed
+npx prisma db seed (apparently broken ignore it)
 ```
 
 4. Start the development server:
@@ -85,6 +95,30 @@ npm run dev
 ```
 
 Visit [http://localhost:3000](http://localhost:3000) to access the platform.
+
+### API Keys Setup
+
+1. **ScreenScraper**:
+   - Register at https://www.screenscraper.fr/
+   - Get your dev ID and password
+   - Create a user account for ssid and sspassword
+
+2. **TheGamesDB**:
+   - Register at https://thegamesdb.net/
+   - Generate an API key
+
+3. **Wikimedia**:
+   - Create an account at https://www.mediawiki.org/
+   - Generate API credentials
+
+4. **Cloudinary**:
+   - Sign up at https://cloudinary.com/
+   - Get your cloud name and API credentials
+
+5. **Neon Database**:
+   - Create an account at https://neon.tech
+   - Create a new project
+   - Get your database connection strings
 
 ## 🏗️ Architecture
 
