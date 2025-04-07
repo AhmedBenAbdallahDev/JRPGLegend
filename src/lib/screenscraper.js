@@ -191,16 +191,19 @@ export async function searchGame(name, platformId) {
       throw new Error(`Invalid platform ID: ${platformId}, must be a number`);
     }
 
-    // Construct the API URL using the correct endpoint
+    // First try with a more flexible search
     const apiUrl = `${SCREENSCRAPER_API_URL}/jeuInfos.php?devid=${devId}&devpassword=${devPassword}&softname=${encodeURIComponent(softname)}&output=json&romnom=${encodeURIComponent(name)}&systemeid=${systemId}&ssid=${user}&sspassword=${password}`;
 
     console.log(`[ScreenScraper] Fetching game info for ${name} on platform ID ${systemId}`);
     console.log(`[ScreenScraper] URL: ${apiUrl.replace(devPassword, 'REDACTED').replace(password, 'REDACTED')}`);
 
-    // Fetch data from ScreenScraper API
-    const response = await fetch(apiUrl);
+    // Fetch data from ScreenScraper API with timeout
+    const response = await fetchWithTimeout(apiUrl, {}, 10000);
     
     if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error(`No game found for "${name}" on platform ID ${systemId}`);
+      }
       throw new Error(`ScreenScraper API responded with status: ${response.status}`);
     }
     
@@ -219,11 +222,19 @@ export async function searchGame(name, platformId) {
     // Process the response to extract all image types
     const game = data.response.jeu;
     console.log(`Game ID: ${game.id}, Name: ${game.noms?.[0]?.text || name}`);
+    console.log(`Game Platform: ${game.systeme?.text || 'Unknown'} (ID: ${game.systemeid || 'Unknown'})`);
+    
+    // Verify that the returned game is actually for the requested platform
+    if (game.systemeid && parseInt(game.systemeid) !== systemId) {
+      console.log(`Warning: Game platform mismatch. Requested: ${systemId}, Got: ${game.systemeid}`);
+      throw new Error(`Game found but platform mismatch. Requested: ${systemId}, Got: ${game.systemeid}`);
+    }
     
     const processedData = {
       id: game.id,
       name: game.noms?.[0]?.text || name,
       system: game.systeme?.text || '',
+      systemId: game.systemeid || '',
       region: game.region?.text || '',
       publisher: game.editeur?.text || '',
       developer: game.developpeur?.text || '',
@@ -233,7 +244,8 @@ export async function searchGame(name, platformId) {
       genre: game.genres?.map(g => g.text).join(', ') || '',
       perspective: game.perspectives?.map(p => p.text).join(', ') || '',
       description: game.synopsis?.text || '',
-      images: []
+      images: [],
+      warning: data.warning || undefined
     };
 
     // Debug: Log what media types exist in the response
@@ -299,59 +311,122 @@ export function getPlatformId(core) {
   // Map EmulatorJS cores to ScreenScraper platform IDs
   // Full list available at: https://www.screenscraper.fr/api2/systemesListe.php
   const platformMap = {
-    'nes': 1,
-    'snes': 3,
-    'n64': 4,
-    'gba': 12,
-    'nds': 15,
-    'genesis': 6, // Was incorrectly 1 (NES), fixed to 6 (Sega Genesis/Mega Drive)
-    'segacd': 20,
-    '32x': 19,
-    'saturn': 22,
-    'psx': 57,
-    'ps2': 58,
-    'psp': 61,
-    'arcade': 75,
-    'gb': 9,
-    'gbc': 10,
-    'atari2600': 25,
-    'atari5200': 26,
-    'atari7800': 27,
-    'lynx': 28,
-    'jaguar': 29,
-    'tg16': 31,
-    'pcenginecd': 32,
-    'wonderswan': 45,
-    'wonderswancolor': 46,
-    'neogeo': 142,
-    'neogeocd': 70,
-    'ngp': 81, // Was incorrectly 25 (Atari 2600), fixed to 81 (Neo Geo Pocket)
-    'ngpc': 82,
-    'virtualboy': 11,
-    'gamegear': 21,
-    'mastersystem': 2,
-    // Add more as needed
+    // Nintendo Systems
+    'nes': 3,        // Nintendo Entertainment System (was incorrectly 1)
+    'snes': 4,       // Super Nintendo Entertainment System (was incorrectly 3)
+    'n64': 14,       // Nintendo 64 (was incorrectly 4)
+    'gba': 12,       // Game Boy Advance
+    'nds': 15,       // Nintendo DS
+    'gb': 9,         // Game Boy
+    'gbc': 10,       // Game Boy Color
+    'virtualboy': 11, // Virtual Boy
+    
+    // Sega Systems
+    'genesis': 1,    // Sega Genesis/Mega Drive (was incorrectly 6)
+    'segacd': 20,    // Sega CD
+    '32x': 19,       // Sega 32X
+    'saturn': 22,    // Sega Saturn
+    'dreamcast': 23, // Sega Dreamcast
+    'gamegear': 21,  // Sega Game Gear
+    'mastersystem': 2, // Sega Master System
+    
+    // Sony Systems
+    'psx': 57,       // PlayStation
+    'ps2': 58,       // PlayStation 2
+    'psp': 61,       // PlayStation Portable
+    
+    // Other Systems
+    'arcade': 75,    // Arcade
+    'atari2600': 25, // Atari 2600
+    'atari5200': 26, // Atari 5200
+    'atari7800': 27, // Atari 7800
+    'lynx': 28,      // Atari Lynx
+    'jaguar': 29,    // Atari Jaguar
+    'tg16': 31,      // TurboGrafx-16
+    'pcenginecd': 32, // PC Engine CD
+    'wonderswan': 45, // WonderSwan
+    'wonderswancolor': 46, // WonderSwan Color
+    'neogeo': 142,   // Neo Geo
+    'neogeocd': 70,  // Neo Geo CD
+    'ngp': 81,       // Neo Geo Pocket
+    'ngpc': 82,      // Neo Geo Pocket Color
   };
 
-  // Also map some common aliases
+  // Common aliases for better matching
   const aliases = {
+    // Nintendo aliases
+    'famicom': 'nes',
+    'nintendo': 'nes',
+    'supernintendo': 'snes',
+    'super nintendo': 'snes',
+    'gameboy': 'gb',
+    'game boy': 'gb',
+    'gameboycolor': 'gbc',
+    'game boy color': 'gbc',
+    'gameboyadvance': 'gba',
+    'game boy advance': 'gba',
+    'nintendods': 'nds',
+    'nintendo ds': 'nds',
+    
+    // Sega aliases
     'megadrive': 'genesis',
     'md': 'genesis',
     'sega': 'genesis',
     'segagenesis': 'genesis',
-    'famicom': 'nes',
-    'gb': 'gameboy',
-    'nintendo': 'nes'
-    // Add more as needed
+    'sega genesis': 'genesis',
+    'sega mega drive': 'genesis',
+    'sega-cd': 'segacd',
+    'sega cd': 'segacd',
+    'sega32x': '32x',
+    'sega 32x': '32x',
+    'segasaturn': 'saturn',
+    'sega saturn': 'saturn',
+    'segadreamcast': 'dreamcast',
+    'sega dreamcast': 'dreamcast',
+    'segamastersystem': 'mastersystem',
+    'sega master system': 'mastersystem',
+    'sms': 'mastersystem',
+    
+    // Sony aliases
+    'playstation': 'psx',
+    'ps1': 'psx',
+    'playstation2': 'ps2',
+    'playstation 2': 'ps2',
+    'playstationportable': 'psp',
+    'playstation portable': 'psp',
+    'playstation3': 'ps3',
+    'playstation 3': 'ps3',
+    
+    // Other aliases
+    'turbografx': 'tg16',
+    'turbografx16': 'tg16',
+    'turbografx-16': 'tg16',
+    'pcengine': 'tg16',
+    'pc engine': 'tg16',
+    'wonderswan-color': 'wonderswancolor',
+    'wonderswan color': 'wonderswancolor',
+    'neogeopocket': 'ngp',
+    'neo geo pocket': 'ngp',
+    'neogeopocketcolor': 'ngpc',
+    'neo geo pocket color': 'ngpc'
   };
 
-  // Use the alias if available, otherwise use the core directly
-  const normalizedCore = aliases[core.toLowerCase()] || core.toLowerCase();
-  const platformId = platformMap[normalizedCore];
+  // Normalize the core name
+  const normalizedCore = core.toLowerCase().trim();
+  
+  // Check aliases first
+  const resolvedCore = aliases[normalizedCore] || normalizedCore;
+  
+  // Get the platform ID
+  const platformId = platformMap[resolvedCore];
+  
+  if (!platformId) {
+    console.warn(`[ScreenScraper] No platform ID mapping found for core: "${core}" (normalized: "${normalizedCore}")`);
+    return null;
+  }
   
   console.log(`[ScreenScraper] Mapped core '${core}' to platform ID: ${platformId}`);
-  
-  return platformId || null;
+  return platformId;
 }
 
 /**

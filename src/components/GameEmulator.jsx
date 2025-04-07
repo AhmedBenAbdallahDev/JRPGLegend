@@ -1,5 +1,6 @@
 'use client';
 import { useEffect } from 'react';
+import { configureN64EmulatorJS } from './N64Config';
 
 export default function GameEmulator({ game }) {
   useEffect(() => {
@@ -30,7 +31,7 @@ export default function GameEmulator({ game }) {
     // Configure EmulatorJS
     window.EJS_player = '#game';
     window.EJS_gameUrl = gameUrl;
-    window.EJS_core = game.core;
+    window.EJS_core = game.core === 'n64' ? 'parallel_n64' : game.core;
     window.EJS_pathtodata = 'https://cdn.emulatorjs.org/nightly/data/';
     window.EJS_cors = true; // Enable CORS proxy
     window.EJS_loadStateURL = false; // Disable save state loading for external URLs
@@ -39,6 +40,16 @@ export default function GameEmulator({ game }) {
     const script = document.createElement('script');
     script.src = 'https://cdn.emulatorjs.org/nightly/data/loader.js';
     script.async = true;
+    
+    // Override N64 core after the script loads
+    script.onload = () => {
+      if (game.core === 'n64') {
+        // Override the core to use parallel_n64 for N64 games
+        console.log('Using parallel_n64 core for N64 games instead of mupen64plus_next');
+        configureN64EmulatorJS();
+      }
+    };
+    
     document.body.appendChild(script);
 
     // Cleanup

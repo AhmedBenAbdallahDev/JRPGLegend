@@ -13,6 +13,10 @@ export default function TestScreenScraperPage() {
   const [selectedImageType, setSelectedImageType] = useState('all');
   const [rawResponse, setRawResponse] = useState(null);
   const [failedImages, setFailedImages] = useState({});
+  const [fullPlatformList, setFullPlatformList] = useState(null);
+  const [loadingPlatforms, setLoadingPlatforms] = useState(false);
+  const [filteredPlatforms, setFilteredPlatforms] = useState(null);
+  const [directPlatformId, setDirectPlatformId] = useState(null);
 
   // Fetch platforms on component mount
   useEffect(() => {
@@ -38,6 +42,34 @@ export default function TestScreenScraperPage() {
     fetchPlatforms();
   }, []);
 
+  // Function to fetch the full platform list from ScreenScraper API
+  const fetchFullPlatformList = async () => {
+    setLoadingPlatforms(true);
+    setError(null);
+    
+    try {
+      const response = await fetch('/api/screenscraper/platforms?fromApi=true');
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch platform list');
+      }
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to fetch platform data');
+      }
+      
+      console.log('Platform API Response:', data);
+      setFullPlatformList(data.platforms);
+      setFilteredPlatforms(data.platforms); // Initialize filtered platforms with all platforms
+    } catch (err) {
+      setError('Error fetching platform list: ' + err.message);
+      console.error('Platform list error:', err);
+    } finally {
+      setLoadingPlatforms(false);
+    }
+  };
+
   const handleSearch = async () => {
     setLoading(true);
     setError(null);
@@ -46,8 +78,19 @@ export default function TestScreenScraperPage() {
     setFailedImages({});
 
     try {
+      // Construct API URL based on whether we have a direct platform ID or need to use the core ID
+      let apiUrl = `/api/screenscraper?name=${encodeURIComponent(gameName)}&strict=true`;
+      
+      if (directPlatformId) {
+        apiUrl += `&platformId=${directPlatformId}`;
+        console.log(`Searching using direct platform ID: ${directPlatformId}`);
+      } else {
+        apiUrl += `&core=${platform}`;
+        console.log(`Searching using platform core: ${platform}`);
+      }
+      
       // First, get the raw response from the ScreenScraper API
-      const rawResponse = await fetch(`/api/screenscraper?name=${encodeURIComponent(gameName)}&core=${platform}&strict=true`);
+      const rawResponse = await fetch(apiUrl);
       const rawData = await rawResponse.json();
       
       if (!rawResponse.ok) {
@@ -143,6 +186,36 @@ export default function TestScreenScraperPage() {
     );
   };
 
+  const handleUseThisPlatform = (platformId) => {
+    // Find the closest matching platform in our dropdown list
+    const matchingPlatform = platforms.find(p => p.platformId === platformId);
+    
+    if (matchingPlatform) {
+      setPlatform(matchingPlatform.id);
+    } else {
+      // If no matching platform in our dropdown, create a temporary one
+      const tempPlatforms = [...platforms];
+      const newPlatform = {
+        id: `id_${platformId}`,
+        name: `Custom Platform (ID: ${platformId})`,
+        platformId: platformId
+      };
+      
+      tempPlatforms.push(newPlatform);
+      setPlatforms(tempPlatforms);
+      setPlatform(newPlatform.id);
+    }
+    
+    // Set the platform ID for direct search
+    setDirectPlatformId(platformId);
+    
+    // Scroll back to the search form
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8 text-white">ScreenScraper API Test</h1>
@@ -166,17 +239,37 @@ export default function TestScreenScraperPage() {
             <label className="block text-sm font-medium text-gray-300 mb-1">
               Platform
             </label>
-            <select
-              value={platform}
-              onChange={(e) => setPlatform(e.target.value)}
-              className="w-full p-2 border border-gray-700 rounded bg-gray-700 text-white"
-            >
-              {platforms.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} (ID: {p.platformId})
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center space-x-2">
+              <select
+                value={platform}
+                onChange={(e) => {
+                  setPlatform(e.target.value);
+                  setDirectPlatformId(null); // Clear direct platform ID when changing dropdown
+                }}
+                className="w-full p-2 border border-gray-700 rounded bg-gray-700 text-white"
+                disabled={directPlatformId !== null}
+              >
+                {platforms.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} (ID: {p.platformId})
+                  </option>
+                ))}
+              </select>
+              {directPlatformId !== null && (
+                <button
+                  onClick={() => setDirectPlatformId(null)}
+                  className="bg-red-600 text-white py-2 px-3 rounded hover:bg-red-700"
+                  title="Clear direct platform ID"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            {directPlatformId !== null && (
+              <div className="mt-1 text-xs text-yellow-400">
+                Using direct platform ID: {directPlatformId}
+              </div>
+            )}
           </div>
           
           <div>
@@ -197,18 +290,91 @@ export default function TestScreenScraperPage() {
           </div>
         </div>
         
-        <button
-          onClick={handleSearch}
-          disabled={loading}
-          className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:bg-blue-300"
-        >
-          {loading ? 'Searching...' : 'Search Game'}
-        </button>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <button
+            onClick={handleSearch}
+            disabled={loading}
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:bg-blue-300"
+          >
+            {loading ? 'Searching...' : 'Search Game'}
+          </button>
+          
+          <button
+            onClick={fetchFullPlatformList}
+            disabled={loadingPlatforms}
+            className="w-full bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700 disabled:bg-green-300"
+          >
+            {loadingPlatforms ? 'Loading Platforms...' : 'Show Full Platform List'}
+          </button>
+        </div>
       </div>
       
       {error && (
         <div className="mb-8 p-4 bg-red-900/50 text-red-200 rounded-lg border border-red-700">
           {error}
+        </div>
+      )}
+      
+      {fullPlatformList && (
+        <div className="mb-8 bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700">
+          <h2 className="text-2xl font-bold mb-4 text-white">
+            Platform List from ScreenScraper ({filteredPlatforms.length} platforms)
+          </h2>
+          
+          <div className="mb-4">
+            <input
+              type="text"
+              placeholder="Search platforms..."
+              className="w-full p-2 border border-gray-700 rounded bg-gray-700 text-white"
+              onChange={(e) => {
+                const filter = e.target.value.toLowerCase();
+                const filtered = fullPlatformList.filter(p => 
+                  p.name.toLowerCase().includes(filter) || 
+                  p.id.toLowerCase().includes(filter) ||
+                  String(p.platformId).includes(filter)
+                );
+                setFilteredPlatforms(filtered);
+              }}
+            />
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-gray-900 text-gray-200 border border-gray-700 rounded">
+              <thead>
+                <tr className="bg-gray-800">
+                  <th className="px-4 py-2 text-left">ID</th>
+                  <th className="px-4 py-2 text-left">Platform ID</th>
+                  <th className="px-4 py-2 text-left">Name</th>
+                  <th className="px-4 py-2 text-left">Company</th>
+                  <th className="px-4 py-2 text-left">Type</th>
+                  <th className="px-4 py-2 text-left">Year</th>
+                  <th className="px-4 py-2 text-left">ROM Extensions</th>
+                  <th className="px-4 py-2 text-left">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredPlatforms.map((platform, index) => (
+                  <tr key={platform.id || index} className={index % 2 === 0 ? 'bg-gray-900' : 'bg-gray-800'}>
+                    <td className="px-4 py-2 border-t border-gray-700">{platform.id}</td>
+                    <td className="px-4 py-2 border-t border-gray-700">{platform.platformId}</td>
+                    <td className="px-4 py-2 border-t border-gray-700">{platform.name}</td>
+                    <td className="px-4 py-2 border-t border-gray-700">{platform.company}</td>
+                    <td className="px-4 py-2 border-t border-gray-700">{platform.type}</td>
+                    <td className="px-4 py-2 border-t border-gray-700">{platform.year}</td>
+                    <td className="px-4 py-2 border-t border-gray-700">{platform.extensions}</td>
+                    <td className="px-4 py-2 border-t border-gray-700">
+                      <button
+                        onClick={() => handleUseThisPlatform(platform.platformId)}
+                        className="bg-blue-600 text-white py-1 px-2 text-xs rounded hover:bg-blue-700"
+                      >
+                        Use This
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
       

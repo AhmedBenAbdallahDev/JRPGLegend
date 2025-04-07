@@ -62,7 +62,7 @@ class EmulatorJS {
             'gb': 'gambatte',
             'gba': 'mgba',
             'vb': 'beetle_vb',
-            'n64': 'mupen64plus_next',
+            'n64': 'parallel_n64',
             'nds': 'melonds',
             'mame': 'mame2003_plus',
             'arcade': 'fbneo',
