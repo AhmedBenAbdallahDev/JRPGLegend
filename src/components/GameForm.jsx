@@ -23,7 +23,7 @@ export default function GameForm({ categories = [] }) {
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
   const [previewImage, setPreviewImage] = useState('');
-  const [selectedApiSource, setSelectedApiSource] = useState('screenscraper'); // Default to ScreenScraper
+  const [selectedApiSource, setSelectedApiSource] = useState('wikimedia');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -102,32 +102,161 @@ export default function GameForm({ categories = [] }) {
     setSearchError('');
 
     try {
-      const response = await fetch(
-        `/api/game-covers?name=${encodeURIComponent(formData.title)}&core=${formData.core}&source=${selectedApiSource}`
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch cover (Status: ${response.status})`);
-      }
-
-      const data = await response.json();
-      
-      if (data.success && data.coverUrl) {
-        setFormData(prev => ({
-          ...prev,
-          apiImageUrl: data.coverUrl,
-          imageSource: selectedApiSource
-        }));
-        setPreviewImage(data.coverUrl);
+      if (selectedApiSource === 'wikimedia') {
+        // Use direct Wikimedia extraction like in GameImage
+        await searchWikimediaImage();
       } else {
-        throw new Error(`No cover image found for this game with ${selectedApiSource === 'tgdb' ? 'TheGamesDB' : 'ScreenScraper'}`);
+        console.log(`[GameForm] ${selectedApiSource} API not directly implemented yet, using Wikimedia instead`);
+        await searchWikimediaImage();
       }
     } catch (err) {
-      console.error('Error fetching cover:', err);
+      console.error('[GameForm] Error fetching cover:', err);
       setSearchError(err.message);
     } finally {
       setSearching(false);
     }
+  };
+
+  // Extract image from HTML - Same implementation as in GameImage and Wiki Image Extraction Test
+  const extractImageFromHtml = (html) => {
+    if (!html) return null;
+    
+    console.log(`[GameForm] Extracting image from HTML (${html.length} chars)`);
+    
+    // Try to find the infobox - Same patterns as in Wiki Image Extraction Test
+    const infoboxPatterns = [
+      /<table class="[^"]*infobox[^"]*vg[^"]*"[^>]*>([\s\S]*?)<\/table>/i,
+      /<table class="[^"]*infobox[^"]*"[^>]*>([\s\S]*?)<\/table>/i,
+      /<table class="[^"]*infobox[^"]*vevent[^"]*"[^>]*>([\s\S]*?)<\/table>/i,
+      /<table class="[^"]*infobox[^"]*game[^"]*"[^>]*>([\s\S]*?)<\/table>/i,
+      /<table class="[^"]*infobox[^"]*software[^"]*"[^>]*>([\s\S]*?)<\/table>/i
+    ];
+    
+    let infoboxHtml = null;
+    for (const pattern of infoboxPatterns) {
+      const infoboxMatch = html.match(pattern);
+      if (infoboxMatch && infoboxMatch[0]) {
+        infoboxHtml = infoboxMatch[0];
+        console.log(`[GameForm] Found infobox HTML (${infoboxHtml.length} chars)`);
+        break;
+      }
+    }
+    
+    if (!infoboxHtml) {
+      console.log(`[GameForm] No infobox found in the page`);
+      return null;
+    }
+    
+    // Try to find the image in the second row
+    const rows = infoboxHtml.match(/<tr[^>]*>[\s\S]*?<\/tr>/gi);
+    if (rows && rows.length >= 2) {
+      const imageMatch = rows[1].match(/<img[^>]*src="([^"]*)"[^>]*>/i);
+      if (imageMatch && imageMatch[1]) {
+        let imageUrl = imageMatch[1];
+        if (imageUrl.startsWith('//')) {
+          imageUrl = `https:${imageUrl}`;
+        }
+        console.log(`[GameForm] Found image in second row: ${imageUrl}`);
+        return imageUrl;
+      }
+    }
+    
+    // If no image in second row, try to find any image in the infobox
+    const imageMatch = infoboxHtml.match(/<img[^>]*src="([^"]*)"[^>]*>/i);
+    if (imageMatch && imageMatch[1]) {
+      let imageUrl = imageMatch[1];
+      if (imageUrl.startsWith('//')) {
+        imageUrl = `https:${imageUrl}`;
+      }
+      console.log(`[GameForm] Found image in infobox: ${imageUrl}`);
+      return imageUrl;
+    }
+    
+    console.log(`[GameForm] No image found in infobox`);
+    return null;
+  };
+
+  // Search for Wikimedia image using the same approach as in GameImage
+  const searchWikimediaImage = async () => {
+    console.log(`[GameForm] Searching Wikimedia for: ${formData.title}`);
+    
+    // Step 1: First, search for the page to get the exact title
+    const searchQuery = `${formData.title} video game`;
+    console.log(`[GameForm] Search query: ${searchQuery}`);
+    
+    const searchResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchQuery)}&format=json&origin=*`);
+    
+    if (!searchResponse.ok) {
+      throw new Error(`Wikipedia search failed: ${searchResponse.status}`);
+    }
+    
+    const searchData = await searchResponse.json();
+    console.log(`[GameForm] Search results:`, searchData.query ? `Found ${searchData.query.search?.length || 0} results` : 'No results');
+    
+    if (!searchData.query?.search || searchData.query.search.length === 0) {
+      throw new Error('No search results found');
+    }
+    
+    // Get the exact title from the first search result
+    const exactTitle = searchData.query.search[0].title;
+    console.log(`[GameForm] Found exact title: "${exactTitle}"`);
+    
+    // Step 2: Now fetch the raw HTML content to extract images
+    console.log(`[GameForm] Fetching HTML content for: ${exactTitle}`);
+    const contentResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=parse&page=${encodeURIComponent(exactTitle)}&prop=text&format=json&origin=*`);
+    
+    if (!contentResponse.ok) {
+      throw new Error(`Failed to fetch page content: ${contentResponse.status}`);
+    }
+    
+    const contentData = await contentResponse.json();
+    if (!contentData.parse?.text?.['*']) {
+      throw new Error('No HTML content found');
+    }
+    
+    const htmlContent = contentData.parse.text['*'];
+    console.log(`[GameForm] Received HTML content (${htmlContent.length} chars)`);
+    
+    // Extract the image from the HTML
+    let imageUrl = extractImageFromHtml(htmlContent);
+    
+    if (imageUrl) {
+      console.log(`[GameForm] Successfully extracted image: ${imageUrl}`);
+      setFormData(prev => ({
+        ...prev,
+        apiImageUrl: imageUrl,
+        imageSource: 'wikimedia'
+      }));
+      setPreviewImage(imageUrl);
+      return;
+    }
+    
+    // Step 3: If no image found in HTML, try the thumbnail API
+    console.log(`[GameForm] No image in HTML, trying thumbnail API for: ${exactTitle}`);
+    const thumbnailResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(exactTitle)}&prop=pageimages&format=json&pithumbsize=500&origin=*`);
+    
+    if (thumbnailResponse.ok) {
+      const thumbnailData = await thumbnailResponse.json();
+      const pages = thumbnailData.query?.pages;
+      
+      if (pages) {
+        const pageId = Object.keys(pages)[0];
+        const thumbnail = pages[pageId]?.thumbnail?.source;
+        
+        if (thumbnail) {
+          console.log(`[GameForm] Found thumbnail: ${thumbnail}`);
+          setFormData(prev => ({
+            ...prev,
+            apiImageUrl: thumbnail,
+            imageSource: 'wikimedia'
+          }));
+          setPreviewImage(thumbnail);
+          return;
+        }
+      }
+    }
+    
+    throw new Error('No image found for this game');
   };
 
   const handleImageSourceChange = (source) => {
@@ -249,8 +378,9 @@ export default function GameForm({ categories = [] }) {
                   onChange={(e) => setSelectedApiSource(e.target.value)}
                   className="p-2 rounded bg-primary border border-accent-secondary"
                 >
-                  <option value="tgdb">TheGamesDB (preferred)</option>
-                  <option value="screenscraper">ScreenScraper</option>
+                  <option value="wikimedia">Wikimedia (recommended)</option>
+                  <option value="tgdb">TheGamesDB (coming soon)</option>
+                  <option value="screenscraper">ScreenScraper (coming soon)</option>
                 </select>
               </div>
               

@@ -1,0 +1,8 @@
+This is a placeholder for an image file.
+In a real application, you would need to create or download 
+a placeholder image and save it as "placeholder.jpg" in the public directory.
+
+For a quick placeholder, you can use a service like:
+- https://placeholder.com/
+- https://picsum.photos/
+- Or create a simple solid color image in any image editor 

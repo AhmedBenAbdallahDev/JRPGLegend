@@ -14,9 +14,9 @@ export default function Header() {
       <Search/>
 
       <nav className="flex gap-4 md:gap-6">
-        <a href="#">
-          <Cog8ToothIcon className="w-6 h-6"/>
-        </a>
+        <Link href="/settings">
+          <Cog8ToothIcon className="w-6 h-6 hover:text-accent transition-colors"/>
+        </Link>
 
         <MobileNav />
       </nav>

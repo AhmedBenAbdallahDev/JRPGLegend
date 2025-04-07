@@ -10,7 +10,7 @@ export default function EnhancedGameCover({
   width = 300, 
   height = 200, 
   className = '',
-  source = 'screenscraper' // Default to screenscraper. Options: 'screenscraper', 'tgdb', or 'auto' (tries screenscraper first, then tgdb)
+  source = 'wikimedia' // Default to wikimedia. Options: 'wikimedia', 'screenscraper', 'tgdb', or 'auto'
 }) {
   const [coverUrl, setCoverUrl] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -56,6 +56,13 @@ export default function EnhancedGameCover({
     const attemptImageFetch = () => {
       // First try existing image reference formats
       if (game.image) {
+        // Check if this is a full URL (external image)
+        if (game.image.startsWith('http://') || game.image.startsWith('https://')) {
+          console.log(`[EnhancedGameCover] External URL detected: ${game.image}`);
+          setCoverUrl(game.image);
+          return true;
+        }
+
         if (game.image.startsWith('tgdb:')) {
           const cachedUrl = checkLocalCache(game.image);
           if (cachedUrl) {
@@ -72,6 +79,41 @@ export default function EnhancedGameCover({
             coverCache.set(game.image, cachedUrl);
           } else {
             fetchScreenscraperImage(game.image);
+          }
+          return true;
+        } else if (game.image.startsWith('wikimedia:')) {
+          const cachedUrl = checkLocalCache(game.image);
+          if (cachedUrl) {
+            setCoverUrl(cachedUrl);
+            coverCache.set(game.image, cachedUrl);
+          } else {
+            // Extract title from reference
+            const parts = game.image.split(':');
+            if (parts.length >= 2) {
+              const title = decodeURIComponent(parts[1]);
+              // Use game-images API to fetch from Wikimedia
+              fetch(`/api/game-images?name=${encodeURIComponent(title)}${game.core ? `&console=${encodeURIComponent(game.core)}` : ''}`)
+                .then(response => response.json())
+                .then(data => {
+                  if (data.success && data.imageUrl) {
+                    setCoverUrl(data.imageUrl);
+                    coverCache.set(game.image, data.imageUrl);
+                    
+                    // Cache in localStorage
+                    if (typeof window !== 'undefined') {
+                      const cacheData = {
+                        url: data.imageUrl,
+                        timestamp: Date.now()
+                      };
+                      localStorage.setItem(`cover_${game.image}`, JSON.stringify(cacheData));
+                    }
+                  }
+                })
+                .catch(err => {
+                  console.error('Error fetching Wikimedia image:', err);
+                  setError('Wikimedia image not available');
+                });
+            }
           }
           return true;
         } else if (!game.image.includes('default-image')) {
@@ -91,6 +133,7 @@ export default function EnhancedGameCover({
           setCoverUrl(cachedUrl);
           coverCache.set(cacheKey, cachedUrl);
         } else {
+          console.log(`[EnhancedGameCover] No cached image found for ${game.title}, fetching from ${source}`);
           fetchGameCover(source);
         }
         return true;
@@ -104,208 +147,73 @@ export default function EnhancedGameCover({
     
   }, [game, source]);
 
-  // Function to fetch image from TheGamesDB based on reference
-  const fetchTGDBImage = async (reference) => {
-    // Format: tgdb:GameTitle:core
-    try {
-      // Check in-memory cache first
-      if (coverCache.has(reference)) {
-        setCoverUrl(coverCache.get(reference));
-        return;
+  // Extract image from HTML - Same implementation as in GameImage and Wiki Image Extraction Test
+  const extractImageFromHtml = (html) => {
+    if (!html) return null;
+    
+    console.log(`[EnhancedGameCover] Extracting image from HTML (${html.length} chars)`);
+    
+    // Try to find the infobox - Same patterns as in Wiki Image Extraction Test
+    const infoboxPatterns = [
+      /<table class="[^"]*infobox[^"]*vg[^"]*"[^>]*>([\s\S]*?)<\/table>/i,
+      /<table class="[^"]*infobox[^"]*"[^>]*>([\s\S]*?)<\/table>/i,
+      /<table class="[^"]*infobox[^"]*vevent[^"]*"[^>]*>([\s\S]*?)<\/table>/i,
+      /<table class="[^"]*infobox[^"]*game[^"]*"[^>]*>([\s\S]*?)<\/table>/i,
+      /<table class="[^"]*infobox[^"]*software[^"]*"[^>]*>([\s\S]*?)<\/table>/i
+    ];
+    
+    let infoboxHtml = null;
+    for (const pattern of infoboxPatterns) {
+      const infoboxMatch = html.match(pattern);
+      if (infoboxMatch && infoboxMatch[0]) {
+        infoboxHtml = infoboxMatch[0];
+        console.log(`[EnhancedGameCover] Found infobox HTML (${infoboxHtml.length} chars)`);
+        break;
       }
-
-      setLoading(true);
-      const parts = reference.split(':');
-      if (parts.length !== 3) {
-        throw new Error('Invalid TheGamesDB reference format');
-      }
-      
-      const gameTitle = decodeURIComponent(parts[1]);
-      const core = parts[2];
-      
-      // Create an AbortController for timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-      
-      try {
-        const response = await fetch(
-          `/api/game-covers?name=${encodeURIComponent(gameTitle)}&core=${core}&source=tgdb`,
-          { signal: controller.signal }
-        );
-        
-        clearTimeout(timeoutId);
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch cover: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        if (data.success && data.coverUrl) {
-          setCoverUrl(data.coverUrl);
-          coverCache.set(reference, data.coverUrl);
-          
-          // Cache in localStorage permanently
-          try {
-            if (typeof window !== 'undefined') {
-              const cacheData = {
-                url: data.coverUrl,
-                title: data.gameTitle || gameTitle,
-                timestamp: Date.now()
-              };
-              localStorage.setItem(`cover_${reference}`, JSON.stringify(cacheData));
-              setCacheDate(new Date().toLocaleDateString());
-            }
-          } catch (err) {
-            console.error("Error saving to localStorage:", err);
-          }
-        } else {
-          throw new Error(data.error || 'Cover not found');
-        }
-      } catch (fetchError) {
-        if (fetchError.name === 'AbortError') {
-          throw new Error('Request timed out. The API may be unavailable.');
-        } else {
-          throw fetchError;
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching TheGamesDB image:', err);
-      // Use a more user-friendly error message
-      const errorMessage = err.message && (
-        err.message.includes('timeout') || err.message.includes('504')
-      ) ? 'API timeout' : 'Cover unavailable';
-      
-      setError(errorMessage);
-      
-      // Try to fall back to ScreenScraper if TheGamesDB failed
-      try {
-        const parts = reference.split(':');
-        if (parts.length === 3) {
-          const gameTitle = decodeURIComponent(parts[1]);
-          const core = parts[2];
-          
-          const fallbackResponse = await fetch(`/api/game-covers?name=${encodeURIComponent(gameTitle)}&core=${core}&source=screenscraper`);
-          if (fallbackResponse.ok) {
-            const fallbackData = await fallbackResponse.json();
-            if (fallbackData.success && fallbackData.coverUrl) {
-              setCoverUrl(fallbackData.coverUrl);
-              coverCache.set(reference, fallbackData.coverUrl);
-              setError(null);
-            }
-          }
-        }
-      } catch (fallbackErr) {
-        console.error('Fallback to ScreenScraper also failed:', fallbackErr);
-      }
-    } finally {
-      setLoading(false);
     }
+    
+    if (!infoboxHtml) {
+      console.log(`[EnhancedGameCover] No infobox found in the page`);
+      return null;
+    }
+    
+    // Try to find the image in the second row - Same as in Wiki Image Extraction Test
+    const rows = infoboxHtml.match(/<tr[^>]*>[\s\S]*?<\/tr>/gi);
+    if (rows && rows.length >= 2) {
+      const imageMatch = rows[1].match(/<img[^>]*src="([^"]*)"[^>]*>/i);
+      if (imageMatch && imageMatch[1]) {
+        let imageUrl = imageMatch[1];
+        if (imageUrl.startsWith('//')) {
+          imageUrl = `https:${imageUrl}`;
+        }
+        console.log(`[EnhancedGameCover] Found image in second row: ${imageUrl}`);
+        return imageUrl;
+      }
+    }
+    
+    // If no image in second row, try to find any image in the infobox - Same as in Wiki Image Extraction Test
+    const imageMatch = infoboxHtml.match(/<img[^>]*src="([^"]*)"[^>]*>/i);
+    if (imageMatch && imageMatch[1]) {
+      let imageUrl = imageMatch[1];
+      if (imageUrl.startsWith('//')) {
+        imageUrl = `https:${imageUrl}`;
+      }
+      console.log(`[EnhancedGameCover] Found image in infobox: ${imageUrl}`);
+      return imageUrl;
+    }
+    
+    console.log(`[EnhancedGameCover] No image found in infobox`);
+    return null;
   };
 
-  // Function to fetch image from ScreenScraper based on reference
-  const fetchScreenscraperImage = async (reference) => {
-    // Format: screenscraper:GameTitle:core
-    try {
-      // Check in-memory cache first
-      if (coverCache.has(reference)) {
-        setCoverUrl(coverCache.get(reference));
-        return;
-      }
-
-      setLoading(true);
-      const parts = reference.split(':');
-      if (parts.length !== 3) {
-        throw new Error('Invalid ScreenScraper reference format');
-      }
-      
-      const gameTitle = decodeURIComponent(parts[1]);
-      const core = parts[2];
-      
-      // Create an AbortController for timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-      
-      try {
-        const response = await fetch(
-          `/api/game-covers?name=${encodeURIComponent(gameTitle)}&core=${core}&source=screenscraper`,
-          { signal: controller.signal }
-        );
-        
-        clearTimeout(timeoutId);
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch cover: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        if (data.success && data.coverUrl) {
-          setCoverUrl(data.coverUrl);
-          coverCache.set(reference, data.coverUrl);
-          
-          // Cache in localStorage permanently
-          try {
-            if (typeof window !== 'undefined') {
-              const cacheData = {
-                url: data.coverUrl,
-                title: data.gameTitle || gameTitle,
-                timestamp: Date.now()
-              };
-              localStorage.setItem(`cover_${reference}`, JSON.stringify(cacheData));
-              setCacheDate(new Date().toLocaleDateString());
-            }
-          } catch (err) {
-            console.error("Error saving to localStorage:", err);
-          }
-        } else {
-          throw new Error(data.error || 'Cover not found');
-        }
-      } catch (fetchError) {
-        if (fetchError.name === 'AbortError') {
-          throw new Error('Request timed out. The ScreenScraper API may be unavailable.');
-        } else {
-          throw fetchError;
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching ScreenScraper image:', err);
-      // Use a more user-friendly error message
-      const errorMessage = err.message && (
-        err.message.includes('timeout') || err.message.includes('504')
-      ) ? 'API timeout' : 'Cover unavailable';
-      
-      setError(errorMessage);
-      
-      // Try to fall back to TheGamesDB if ScreenScraper failed
-      try {
-        const parts = reference.split(':');
-        if (parts.length === 3) {
-          const gameTitle = decodeURIComponent(parts[1]);
-          const core = parts[2];
-          
-          const fallbackResponse = await fetch(`/api/game-covers?name=${encodeURIComponent(gameTitle)}&core=${core}&source=tgdb`);
-          if (fallbackResponse.ok) {
-            const fallbackData = await fallbackResponse.json();
-            if (fallbackData.success && fallbackData.coverUrl) {
-              setCoverUrl(fallbackData.coverUrl);
-              coverCache.set(reference, fallbackData.coverUrl);
-              setError(null);
-            }
-          }
-        }
-      } catch (fallbackErr) {
-        console.error('Fallback to TheGamesDB also failed:', fallbackErr);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fetch game cover based on title and core
+  // Function to fetch game cover from selected source
   const fetchGameCover = async (preferredSource) => {
     if (!game.title || !game.core) {
       setError('Missing game title or core');
       return;
     }
+
+    console.log(`[EnhancedGameCover] Fetching game cover for ${game.title} using source: ${preferredSource}`);
 
     // Generate a cache key
     const cacheKey = `${preferredSource}:${game.title}:${game.core}`;
@@ -317,80 +225,165 @@ export default function EnhancedGameCover({
     }
 
     setLoading(true);
-    try {
-      // Create an AbortController for timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-      
+    
+    // For wikimedia, use direct extraction like in GameImage
+    if (preferredSource === 'wikimedia') {
       try {
-        const response = await fetch(
-          `/api/game-covers?name=${encodeURIComponent(game.title)}&core=${game.core}&source=${preferredSource}`,
-          { signal: controller.signal }
-        );
+        console.log(`[EnhancedGameCover] Using Wiki Image Extraction method for: ${game.title}`);
         
-        clearTimeout(timeoutId);
+        // Step 1: First, search for the page to get the exact title - Same as in Wiki Image Extraction Test
+        console.log(`[EnhancedGameCover] Step 1 - Searching for: ${game.title}`);
+        const searchQuery = `${game.title} video game`;
         
-        if (!response.ok) {
-          throw new Error(`Failed to fetch cover: ${response.status}`);
+        const searchResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchQuery)}&format=json&origin=*`);
+        
+        if (!searchResponse.ok) {
+          throw new Error(`Wikipedia search failed: ${searchResponse.status}`);
         }
         
-        const data = await response.json();
-        if (data.success && data.coverUrl) {
-          setCoverUrl(data.coverUrl);
-          coverCache.set(cacheKey, data.coverUrl);
+        const searchData = await searchResponse.json();
+        console.log(`[EnhancedGameCover] Search results:`, searchData.query ? `Found ${searchData.query.search?.length || 0} results` : 'No results');
+        
+        if (!searchData.query?.search || searchData.query.search.length === 0) {
+          throw new Error('No search results found');
+        }
+        
+        // Get the exact title from the first search result
+        const exactTitle = searchData.query.search[0].title;
+        console.log(`[EnhancedGameCover] Found exact title: "${exactTitle}"`);
+        
+        // Step 2: Now fetch the raw HTML content to extract images - Same as in Wiki Image Extraction Test
+        console.log(`[EnhancedGameCover] Step 2 - Fetching HTML content for: ${exactTitle}`);
+        const contentResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=parse&page=${encodeURIComponent(exactTitle)}&prop=text&format=json&origin=*`);
+        
+        if (!contentResponse.ok) {
+          throw new Error(`Failed to fetch page content: ${contentResponse.status}`);
+        }
+        
+        const contentData = await contentResponse.json();
+        if (!contentData.parse?.text?.['*']) {
+          throw new Error('No HTML content found');
+        }
+        
+        const htmlContent = contentData.parse.text['*'];
+        console.log(`[EnhancedGameCover] Received HTML content (${htmlContent.length} chars)`);
+        
+        // Now extract the image from the HTML - Same as in Wiki Image Extraction Test
+        let extractedImageUrl = extractImageFromHtml(htmlContent);
+        
+        if (extractedImageUrl) {
+          console.log(`[EnhancedGameCover] Successfully extracted image: ${extractedImageUrl}`);
+          
+          // Store the result
+          setCoverUrl(extractedImageUrl);
+          coverCache.set(cacheKey, extractedImageUrl);
           
           // Cache in localStorage permanently
           try {
             if (typeof window !== 'undefined') {
               const cacheData = {
-                url: data.coverUrl,
-                title: data.gameTitle || game.title,
-                source: data.source || preferredSource,
+                url: extractedImageUrl,
+                title: exactTitle,
+                source: 'wikimedia',
                 timestamp: Date.now()
               };
               localStorage.setItem(`cover_${cacheKey}`, JSON.stringify(cacheData));
               setCacheDate(new Date().toLocaleDateString());
             }
           } catch (err) {
-            console.error("Error saving to localStorage:", err);
+            console.error("[EnhancedGameCover] Error saving to localStorage:", err);
           }
-        } else {
-          throw new Error(data.error || 'Cover not found');
+          
+          setLoading(false);
+          return;
         }
-      } catch (fetchError) {
-        if (fetchError.name === 'AbortError') {
-          throw new Error('Request timed out. The API may be unavailable.');
-        } else {
-          throw fetchError;
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching game cover:', err);
-      // Use a more user-friendly error message that doesn't break the UI
-      const errorMessage = err.message && (
-        err.message.includes('timeout') || err.message.includes('504')
-      ) ? 'API timeout' : 'Cover unavailable';
-      
-      setError(errorMessage);
-      
-      // Try to fall back to the other API if this was screenscraper and failed
-      if (preferredSource === 'screenscraper' && game.title && game.core) {
-        console.log('Falling back to TheGamesDB after ScreenScraper failure');
-        try {
-          const fallbackResponse = await fetch(`/api/game-covers?name=${encodeURIComponent(game.title)}&core=${game.core}&source=tgdb`);
-          if (fallbackResponse.ok) {
-            const fallbackData = await fallbackResponse.json();
-            if (fallbackData.success && fallbackData.coverUrl) {
-              setCoverUrl(fallbackData.coverUrl);
-              coverCache.set(cacheKey, fallbackData.coverUrl);
-              setError(null);
+        
+        // Step 3: If no image found in HTML, try the thumbnail API - Same as in Wiki Image Extraction Test
+        console.log(`[EnhancedGameCover] Step 3 - No image in HTML, trying thumbnail API for: ${exactTitle}`);
+        const thumbnailResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(exactTitle)}&prop=pageimages&format=json&pithumbsize=500&origin=*`);
+        
+        if (thumbnailResponse.ok) {
+          const thumbnailData = await thumbnailResponse.json();
+          const pages = thumbnailData.query?.pages;
+          
+          if (pages) {
+            const pageId = Object.keys(pages)[0];
+            const thumbnail = pages[pageId]?.thumbnail?.source;
+            
+            if (thumbnail) {
+              console.log(`[EnhancedGameCover] Found thumbnail: ${thumbnail}`);
+              
+              // Store the result
+              setCoverUrl(thumbnail);
+              coverCache.set(cacheKey, thumbnail);
+              
+              // Cache in localStorage permanently
+              try {
+                if (typeof window !== 'undefined') {
+                  const cacheData = {
+                    url: thumbnail,
+                    title: exactTitle,
+                    source: 'wikimedia',
+                    timestamp: Date.now()
+                  };
+                  localStorage.setItem(`cover_${cacheKey}`, JSON.stringify(cacheData));
+                  setCacheDate(new Date().toLocaleDateString());
+                }
+              } catch (err) {
+                console.error("[EnhancedGameCover] Error saving to localStorage:", err);
+              }
+              
+              setLoading(false);
+              return;
             }
           }
-        } catch (fallbackErr) {
-          console.error('Fallback to TheGamesDB also failed:', fallbackErr);
         }
+        
+        throw new Error('No image found for this game');
+        
+      } catch (err) {
+        console.error('[EnhancedGameCover] Error fetching Wikimedia image:', err);
+        setError('Wikimedia cover unavailable');
+        setLoading(false);
+        return;
       }
-    } finally {
+    }
+    
+    // For TGDB and ScreenScraper, use direct API calls instead of the deprecated API route
+    else if (preferredSource === 'tgdb') {
+      try {
+        console.log(`[EnhancedGameCover] Fetching TGDB image for: ${game.title}`);
+        // Log the request
+        console.log(`[EnhancedGameCover] TGDB direct API not implemented yet, falling back to wikimedia`);
+        
+        // For now, fall back to wikimedia since we don't have direct TGDB API access
+        // You can implement the direct TGDB API call here in the future
+        
+        // Fall back to wikimedia
+        fetchGameCover('wikimedia');
+      } catch (err) {
+        console.error('[EnhancedGameCover] Error fetching TGDB image:', err);
+        setError('TGDB cover unavailable');
+        setLoading(false);
+      }
+    } else if (preferredSource === 'screenscraper') {
+      try {
+        console.log(`[EnhancedGameCover] Fetching ScreenScraper image for: ${game.title}`);
+        // Log the request
+        console.log(`[EnhancedGameCover] ScreenScraper direct API not implemented yet, falling back to wikimedia`);
+        
+        // For now, fall back to wikimedia since we don't have direct ScreenScraper API access
+        // You can implement the direct ScreenScraper API call here in the future
+        
+        // Fall back to wikimedia
+        fetchGameCover('wikimedia');
+      } catch (err) {
+        console.error('[EnhancedGameCover] Error fetching ScreenScraper image:', err);
+        setError('ScreenScraper cover unavailable');
+        setLoading(false);
+      }
+    } else {
+      setError(`Unknown source: ${preferredSource}`);
       setLoading(false);
     }
   };
@@ -406,15 +399,25 @@ export default function EnhancedGameCover({
         </div>
       )}
       
-      <Image
-        src={coverUrl || defaultImage}
-        width={width}
-        height={height}
-        alt={game.title || 'Game Cover'}
-        quality={80}
-        className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-        onError={() => setCoverUrl(defaultImage)}
-      />
+      {/* Use standard img tag for external URLs, Next.js Image for local paths */}
+      {coverUrl && (coverUrl.startsWith('http://') || coverUrl.startsWith('https://')) ? (
+        <img
+          src={coverUrl}
+          alt={game.title || 'Game Cover'}
+          className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+          onError={() => setCoverUrl('/game/default-image.png')}
+        />
+      ) : (
+        <Image
+          src={coverUrl || defaultImage}
+          width={width}
+          height={height}
+          alt={game.title || 'Game Cover'}
+          quality={80}
+          className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+          onError={() => setCoverUrl(defaultImage)}
+        />
+      )}
       
       {error && !coverUrl && (
         <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-accent text-xs p-1 text-center">
