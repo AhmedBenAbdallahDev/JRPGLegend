@@ -5,15 +5,13 @@ import Link from 'next/link';
 import { usePathname } from "next/navigation";
 import { SiPlaystation, SiSega } from 'react-icons/si';
 import { FaGamepad, FaMobileAlt, FaDice } from 'react-icons/fa';
-import { FiImage, FiDatabase, FiSettings, FiBookOpen } from 'react-icons/fi';
+import { FiSettings } from 'react-icons/fi';
 
 export default function SideBarNav({ categoryMenu }) {
   const pathname = usePathname();
   
   // Initialize state with default values
   const [menuOpen, setMenuOpen] = useState(true);
-  const [categoriesOpen, setCategoriesOpen] = useState(true);
-  const [apiTestsOpen, setApiTestsOpen] = useState(true);
   const [nintendoOpen, setNintendoOpen] = useState(true);
   const [segaOpen, setSegaOpen] = useState(true);
   const [sonyOpen, setSonyOpen] = useState(true);
@@ -36,12 +34,10 @@ export default function SideBarNav({ categoryMenu }) {
         
         // Only update if the saved value is a boolean
         if (typeof states.menuOpen === 'boolean') setMenuOpen(states.menuOpen);
-        if (typeof states.categoriesOpen === 'boolean') setCategoriesOpen(states.categoriesOpen);
         if (typeof states.nintendoOpen === 'boolean') setNintendoOpen(states.nintendoOpen);
         if (typeof states.segaOpen === 'boolean') setSegaOpen(states.segaOpen);
         if (typeof states.sonyOpen === 'boolean') setSonyOpen(states.sonyOpen);
         if (typeof states.otherOpen === 'boolean') setOtherOpen(states.otherOpen);
-        if (typeof states.apiTestsOpen === 'boolean') setApiTestsOpen(states.apiTestsOpen);
       }
     } catch (error) {
       console.error("Error loading sidebar states:", error);
@@ -55,18 +51,16 @@ export default function SideBarNav({ categoryMenu }) {
     try {
       const states = {
         menuOpen,
-        categoriesOpen,
         nintendoOpen,
         segaOpen,
         sonyOpen,
-        otherOpen,
-        apiTestsOpen
+        otherOpen
       };
       localStorage.setItem('sidebarStates', JSON.stringify(states));
     } catch (error) {
       console.error("Error saving sidebar states:", error);
     }
-  }, [isClient, menuOpen, categoriesOpen, nintendoOpen, segaOpen, sonyOpen, otherOpen, apiTestsOpen]);
+  }, [isClient, menuOpen, nintendoOpen, segaOpen, sonyOpen, otherOpen]);
 
   const mainMenuItems = [
     {
@@ -103,11 +97,9 @@ export default function SideBarNav({ categoryMenu }) {
     switch (slug) {
       case 'nes':
       case 'snes':
-        return <FaGamepad size={iconSize} />;
       case 'n64':
         return <FaGamepad size={iconSize} />;
-      case 'gb':
-      case 'gbc':
+      case 'gb-gbc': // Combined Game Boy category
       case 'gba':
         return <FaMobileAlt size={iconSize} />;
       case 'nds':
@@ -120,13 +112,13 @@ export default function SideBarNav({ categoryMenu }) {
       case 'psp':
         return <SiPlaystation size={iconSize} />;
       case 'arcade':
-        return <FaGamepad size={iconSize} />;
+        return <FaDice size={iconSize} />;
       default:
         return <FaGamepad size={iconSize} />;
     }
   };
 
-  // Group categories by console type
+  // Group categories by console type and combine GB/GBC
   const groupCategories = (categories) => {
     if (!categories) return { nintendo: [], sega: [], sony: [], other: [] };
     
@@ -136,7 +128,7 @@ export default function SideBarNav({ categoryMenu }) {
     const other = [];
     
     // Define the order for each console group
-    const nintendoOrder = ['nes', 'snes', 'n64', 'gb', 'gbc', 'gba', 'nds'];
+    const nintendoOrder = ['nes', 'snes', 'n64', 'gb-gbc', 'gba', 'nds'];
     const segaOrder = ['genesis', 'segacd', 'saturn'];
     const sonyOrder = ['psx', 'psp'];
     
@@ -149,30 +141,51 @@ export default function SideBarNav({ categoryMenu }) {
       });
     };
     
+    // Combine GB and GBC categories
+    let gbCategory = null;
+    let gbcCategory = null;
+    
     categories.forEach(category => {
-      switch (category.slug) {
-        case 'nes':
-        case 'snes':
-        case 'n64':
-        case 'gb':
-        case 'gbc':
-        case 'gba':
-        case 'nds':
-          nintendo.push(category);
-          break;
-        case 'genesis':
-        case 'segacd':
-        case 'saturn':
-          sega.push(category);
-          break;
-        case 'psx':
-        case 'psp':
-          sony.push(category);
-          break;
-        default:
-          other.push(category);
+      if (category.slug === 'gb') {
+        gbCategory = category;
+      } else if (category.slug === 'gbc') {
+        gbcCategory = category;
+      } else {
+        switch (category.slug) {
+          case 'nes':
+          case 'snes':
+          case 'n64':
+          case 'gba':
+          case 'nds':
+            nintendo.push(category);
+            break;
+          case 'genesis':
+          case 'segacd':
+          case 'saturn':
+            sega.push(category);
+            break;
+          case 'psx':
+          case 'psp':
+            sony.push(category);
+            break;
+          default:
+            other.push(category);
+        }
       }
     });
+    
+    // Create combined GB/GBC category if either exists
+    if (gbCategory || gbcCategory) {
+      const combinedCategory = {
+        slug: 'gb-gbc',
+        title: 'Game Boy / Color',
+        games: [
+          ...(gbCategory?.games || []),
+          ...(gbcCategory?.games || [])
+        ]
+      };
+      nintendo.push(combinedCategory);
+    }
     
     // Sort each group
     return {
@@ -200,266 +213,158 @@ export default function SideBarNav({ categoryMenu }) {
             <ChevronRightIcon className="w-3 h-3 ml-auto" />
           }
         </div>
+        
         {menuOpen && (
-          <div className="ml-6 mt-1">
-            {mainMenuItems.map((item, i) => (
+          <div className="ml-4 mt-1 space-y-1">
+            {mainMenuItems.map((item) => (
               <Link
-                key={i}
+                key={item.slug}
                 href={item.slug}
-                className={`text-sm tracking-wide flex gap-2 items-center p-1 px-2 ${
-                  pathname === item.slug
-                    ? "active bg-primary rounded-md"
-                    : "incative hover:bg-primary rounded-md"
+                className={`flex items-center gap-2 p-1 text-sm rounded-md hover:bg-accent/10 ${
+                  pathname === item.slug ? "bg-accent/10 text-accent" : "text-gray-400"
                 }`}
               >
-                <item.icon className="w-4 h-4" />
+                <item.icon className="w-5 h-5" />
                 <span>{item.name}</span>
               </Link>
             ))}
           </div>
         )}
       </div>
-
-      {/* Categories */}
+      
+      {/* Nintendo Section */}
       <div className="mb-3">
         <div 
           className="flex items-center gap-2 p-1 text-sm font-medium cursor-pointer"
-          onClick={() => setCategoriesOpen(!categoriesOpen)}
+          onClick={() => setNintendoOpen(!nintendoOpen)}
         >
-          <DeviceTabletIcon className="w-5 h-5 text-accent" />
-          <span>Categories</span>
-          {categoriesOpen ? 
+          <FaGamepad className="w-5 h-5 text-accent" />
+          <span>Nintendo</span>
+          {nintendoOpen ? 
             <ChevronDownIcon className="w-3 h-3 ml-auto" /> : 
             <ChevronRightIcon className="w-3 h-3 ml-auto" />
           }
         </div>
-        {categoriesOpen && (
-          <div className="ml-6 mt-1">
-            {/* Nintendo Categories */}
-            {groupedCategories.nintendo.length > 0 && (
-              <div className="mb-3">
-                <div 
-                  className="flex items-center gap-2 p-1 text-sm font-medium cursor-pointer"
-                  onClick={() => setNintendoOpen(!nintendoOpen)}
-                >
-                  <FaGamepad className="text-accent" />
-                  <span>Nintendo</span>
-                  {nintendoOpen ? 
-                    <ChevronDownIcon className="w-3 h-3 ml-auto" /> : 
-                    <ChevronRightIcon className="w-3 h-3 ml-auto" />
-                  }
-                </div>
-                
-                {nintendoOpen && (
-                  <ul className="bg-muted flex flex-col gap-1 ml-6 mt-1">
-                    {groupedCategories.nintendo.map((item) => (
-                      <li key={item.id}>
-                        <Link
-                          href={`/category/${item.slug}`}
-                          className={`text-sm tracking-wide flex gap-2 items-center p-1 px-2 ${
-                            pathname === `/category/${item.slug}`
-                              ? "active bg-primary rounded-md"
-                              : "incative hover:bg-primary rounded-md"
-                          }`}
-                        >
-                          <div className="text-accent">
-                            {getCategoryIcon(item.slug)}
-                          </div>
-                          {item.title}{" "}
-                          <span className="text-accent text-xs ml-auto">({item?.games?.length || 0})</span>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-            
-            {/* Sega Categories */}
-            {groupedCategories.sega.length > 0 && (
-              <div className="mb-3">
-                <div 
-                  className="flex items-center gap-2 p-1 text-sm font-medium cursor-pointer"
-                  onClick={() => setSegaOpen(!segaOpen)}
-                >
-                  <SiSega className="text-accent" />
-                  <span>Sega</span>
-                  {segaOpen ? 
-                    <ChevronDownIcon className="w-3 h-3 ml-auto" /> : 
-                    <ChevronRightIcon className="w-3 h-3 ml-auto" />
-                  }
-                </div>
-                
-                {segaOpen && (
-                  <ul className="bg-muted flex flex-col gap-1 ml-6 mt-1">
-                    {groupedCategories.sega.map((item) => (
-                      <li key={item.id}>
-                        <Link
-                          href={`/category/${item.slug}`}
-                          className={`text-sm tracking-wide flex gap-2 items-center p-1 px-2 ${
-                            pathname === `/category/${item.slug}`
-                              ? "active bg-primary rounded-md"
-                              : "incative hover:bg-primary rounded-md"
-                          }`}
-                        >
-                          <div className="text-accent">
-                            {getCategoryIcon(item.slug)}
-                          </div>
-                          {item.title}{" "}
-                          <span className="text-accent text-xs ml-auto">({item?.games?.length || 0})</span>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-            
-            {/* Sony Categories */}
-            {groupedCategories.sony.length > 0 && (
-              <div className="mb-3">
-                <div 
-                  className="flex items-center gap-2 p-1 text-sm font-medium cursor-pointer"
-                  onClick={() => setSonyOpen(!sonyOpen)}
-                >
-                  <SiPlaystation className="text-accent" />
-                  <span>Sony</span>
-                  {sonyOpen ? 
-                    <ChevronDownIcon className="w-3 h-3 ml-auto" /> : 
-                    <ChevronRightIcon className="w-3 h-3 ml-auto" />
-                  }
-                </div>
-                
-                {sonyOpen && (
-                  <ul className="bg-muted flex flex-col gap-1 ml-6 mt-1">
-                    {groupedCategories.sony.map((item) => (
-                      <li key={item.id}>
-                        <Link
-                          href={`/category/${item.slug}`}
-                          className={`text-sm tracking-wide flex gap-2 items-center p-1 px-2 ${
-                            pathname === `/category/${item.slug}`
-                              ? "active bg-primary rounded-md"
-                              : "incative hover:bg-primary rounded-md"
-                          }`}
-                        >
-                          <div className="text-accent">
-                            {getCategoryIcon(item.slug)}
-                          </div>
-                          {item.title}{" "}
-                          <span className="text-accent text-xs ml-auto">({item?.games?.length || 0})</span>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-            
-            {/* Other Categories */}
-            {groupedCategories.other.length > 0 && (
-              <div className="mb-3">
-                <div 
-                  className="flex items-center gap-2 p-1 text-sm font-medium cursor-pointer"
-                  onClick={() => setOtherOpen(!otherOpen)}
-                >
-                  <FaDice className="text-accent" />
-                  <span>Other</span>
-                  {otherOpen ? 
-                    <ChevronDownIcon className="w-3 h-3 ml-auto" /> : 
-                    <ChevronRightIcon className="w-3 h-3 ml-auto" />
-                  }
-                </div>
-                
-                {otherOpen && (
-                  <ul className="bg-muted flex flex-col gap-1 ml-6 mt-1">
-                    {groupedCategories.other.map((item) => (
-                      <li key={item.id}>
-                        <Link
-                          href={`/category/${item.slug}`}
-                          className={`text-sm tracking-wide flex gap-2 items-center p-1 px-2 ${
-                            pathname === `/category/${item.slug}`
-                              ? "active bg-primary rounded-md"
-                              : "incative hover:bg-primary rounded-md"
-                          }`}
-                        >
-                          <div className="text-accent">
-                            {getCategoryIcon(item.slug)}
-                          </div>
-                          {item.title}{" "}
-                          <span className="text-accent text-xs ml-auto">({item?.games?.length || 0})</span>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
+        
+        {nintendoOpen && (
+          <div className="ml-4 mt-1 space-y-1">
+            {groupedCategories.nintendo.map((category) => (
+              <Link
+                key={category.slug}
+                href={`/category/${category.slug}`}
+                className={`flex items-center gap-2 p-1 text-sm rounded-md hover:bg-accent/10 ${
+                  pathname === `/category/${category.slug}` ? "bg-accent/10 text-accent" : "text-gray-400"
+                }`}
+              >
+                {getCategoryIcon(category.slug)}
+                <span>{category.title}</span>
+                <span className="ml-auto text-xs text-gray-500">({category.games?.length || 0})</span>
+              </Link>
+            ))}
           </div>
         )}
       </div>
-
-      {/* API Test Pages */}
+      
+      {/* Sega Section */}
       <div className="mb-3">
         <div 
           className="flex items-center gap-2 p-1 text-sm font-medium cursor-pointer"
-          onClick={() => setApiTestsOpen(!apiTestsOpen)}
+          onClick={() => setSegaOpen(!segaOpen)}
         >
-          <FiSettings className="w-5 h-5 text-accent" />
-          <span>API Tests</span>
-          {apiTestsOpen ? 
+          <SiSega className="w-5 h-5 text-accent" />
+          <span>Sega</span>
+          {segaOpen ? 
             <ChevronDownIcon className="w-3 h-3 ml-auto" /> : 
             <ChevronRightIcon className="w-3 h-3 ml-auto" />
           }
         </div>
-        {apiTestsOpen && (
-          <div className="ml-6 mt-1">
-            <Link
-              href="/test-screenscraper"
-              className={`text-sm tracking-wide flex gap-2 items-center p-1 px-2 ${
-                pathname === "/test-screenscraper"
-                  ? "active bg-primary rounded-md"
-                  : "incative hover:bg-primary rounded-md"
-              }`}
-            >
-              <FiImage className="w-4 h-4" />
-              <span>ScreenScraper Test</span>
-            </Link>
-            <Link
-              href="/test-wiki-image-extraction"
-              className={`text-sm tracking-wide flex gap-2 items-center p-1 px-2 ${
-                pathname === "/test-wiki-image-extraction"
-                  ? "active bg-primary rounded-md"
-                  : "incative hover:bg-primary rounded-md"
-              }`}
-            >
-              <FiImage className="w-4 h-4" />
-              <span>Wiki Image Test</span>
-            </Link>
-            <Link
-              href="/thegamesdb-test"
-              className={`text-sm tracking-wide flex gap-2 items-center p-1 px-2 ${
-                pathname === "/thegamesdb-test"
-                  ? "active bg-primary rounded-md"
-                  : "incative hover:bg-primary rounded-md"
-              }`}
-            >
-              <FiDatabase className="w-4 h-4" />
-              <span>TheGamesDB Test</span>
-            </Link>
-            <Link
-              href="/wikipedia-test"
-              className={`text-sm tracking-wide flex gap-2 items-center p-1 px-2 ${
-                pathname === "/wikipedia-test"
-                  ? "active bg-primary rounded-md"
-                  : "incative hover:bg-primary rounded-md"
-              }`}
-            >
-              <FiBookOpen className="w-4 h-4" />
-              <span>Wikipedia Test</span>
-            </Link>
+        
+        {segaOpen && (
+          <div className="ml-4 mt-1 space-y-1">
+            {groupedCategories.sega.map((category) => (
+              <Link
+                key={category.slug}
+                href={`/category/${category.slug}`}
+                className={`flex items-center gap-2 p-1 text-sm rounded-md hover:bg-accent/10 ${
+                  pathname === `/category/${category.slug}` ? "bg-accent/10 text-accent" : "text-gray-400"
+                }`}
+              >
+                {getCategoryIcon(category.slug)}
+                <span>{category.title}</span>
+                <span className="ml-auto text-xs text-gray-500">({category.games?.length || 0})</span>
+              </Link>
+            ))}
           </div>
         )}
       </div>
+      
+      {/* Sony Section */}
+      <div className="mb-3">
+        <div 
+          className="flex items-center gap-2 p-1 text-sm font-medium cursor-pointer"
+          onClick={() => setSonyOpen(!sonyOpen)}
+        >
+          <SiPlaystation className="w-5 h-5 text-accent" />
+          <span>Sony</span>
+          {sonyOpen ? 
+            <ChevronDownIcon className="w-3 h-3 ml-auto" /> : 
+            <ChevronRightIcon className="w-3 h-3 ml-auto" />
+          }
+        </div>
+        
+        {sonyOpen && (
+          <div className="ml-4 mt-1 space-y-1">
+            {groupedCategories.sony.map((category) => (
+              <Link
+                key={category.slug}
+                href={`/category/${category.slug}`}
+                className={`flex items-center gap-2 p-1 text-sm rounded-md hover:bg-accent/10 ${
+                  pathname === `/category/${category.slug}` ? "bg-accent/10 text-accent" : "text-gray-400"
+                }`}
+              >
+                {getCategoryIcon(category.slug)}
+                <span>{category.title}</span>
+                <span className="ml-auto text-xs text-gray-500">({category.games?.length || 0})</span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+      
+      {/* Other Section */}
+      {groupedCategories.other.length > 0 && (
+        <div className="mb-3">
+          <div 
+            className="flex items-center gap-2 p-1 text-sm font-medium cursor-pointer"
+            onClick={() => setOtherOpen(!otherOpen)}
+          >
+            <FaDice className="w-5 h-5 text-accent" />
+            <span>Other</span>
+            {otherOpen ? 
+              <ChevronDownIcon className="w-3 h-3 ml-auto" /> : 
+              <ChevronRightIcon className="w-3 h-3 ml-auto" />
+            }
+          </div>
+          
+          {otherOpen && (
+            <div className="ml-4 mt-1 space-y-1">
+              {groupedCategories.other.map((category) => (
+                <Link
+                  key={category.slug}
+                  href={`/category/${category.slug}`}
+                  className={`flex items-center gap-2 p-1 text-sm rounded-md hover:bg-accent/10 ${
+                    pathname === `/category/${category.slug}` ? "bg-accent/10 text-accent" : "text-gray-400"
+                  }`}
+                >
+                  {getCategoryIcon(category.slug)}
+                  <span>{category.title}</span>
+                  <span className="ml-auto text-xs text-gray-500">({category.games?.length || 0})</span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
