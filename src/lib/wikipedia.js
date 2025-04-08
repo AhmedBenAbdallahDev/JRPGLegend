@@ -77,8 +77,8 @@ export async function searchWikipedia(gameName) {
       throw new Error('Game name is required');
     }
     
-    // Use the game name directly without adding "video game"
-    const searchTerm = gameName;
+    // Add "video game" to the search query to improve relevance
+    const searchTerm = `${gameName} video game`;
     
     // Create URL with proper parameters for Wikipedia search
     const url = new URL(WIKIPEDIA_API_URL);
