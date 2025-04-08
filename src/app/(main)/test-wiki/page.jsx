@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { FiSearch, FiBook, FiDatabase, FiInfo, FiExternalLink } from 'react-icons/fi';
+import { HiOutlineBookOpen, HiOutlineExclamation } from 'react-icons/hi'; 
 import Image from 'next/image';
 
 export default function TestWikiPage() {
@@ -66,7 +67,7 @@ export default function TestWikiPage() {
     ];
 
     return (
-      <div className="bg-gray-900 rounded-lg p-4 mt-4 border border-gray-700">
+      <div className="bg-main rounded-lg p-4 mt-4 border border-accent/30">
         <div className="text-lg font-bold mb-2 text-white flex items-center">
           <FiDatabase className="mr-2 text-accent" /> Game Information (Extracted Text)
         </div>
@@ -74,11 +75,11 @@ export default function TestWikiPage() {
           <tbody>
             {fields.map(field => 
               infobox[field.key] ? (
-                <tr key={field.key} className="border-b border-gray-700">
-                  <td className="py-2 px-3 font-bold text-gray-400 w-1/3">
+                <tr key={field.key} className="border-b border-accent/20">
+                  <td className="py-2 px-3 font-bold text-accent/80 w-1/3">
                     {field.label}:
                   </td>
-                  <td className="py-2 px-3 text-gray-200">
+                  <td className="py-2 px-3 text-white">
                     {infobox[field.key]}
                   </td>
                 </tr>
@@ -91,12 +92,12 @@ export default function TestWikiPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-5xl text-gray-200">
-      <h1 className="text-3xl font-bold mb-6 text-white flex items-center">
-        <FiBook className="mr-3 text-accent" /> Wikimedia API Test Page
+    <div className="container mx-auto px-4 py-8 max-w-5xl">
+      <h1 className="text-3xl font-bold mb-6 text-white flex items-center border-b border-accent/30 pb-4">
+        <HiOutlineBookOpen className="mr-3 text-accent text-4xl" /> Wikimedia API Test Page
       </h1>
       
-      <div className="bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700 mb-8">
+      <div className="bg-muted p-6 rounded-lg shadow-md border border-accent/30 mb-8 hover:border-accent/50 transition-all">
         <h2 className="text-xl font-bold mb-4 text-white flex items-center">
           <FiSearch className="mr-2 text-accent" /> Search Wikipedia
         </h2>
@@ -108,13 +109,13 @@ export default function TestWikiPage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Enter search term"
-              className="w-full p-3 rounded bg-gray-900 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-accent"
+              className="w-full p-3 rounded bg-main border border-accent/30 text-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
             />
           </div>
           <button 
             onClick={handleSearch} 
             disabled={loading} 
-            className="flex items-center justify-center bg-blue-600 text-white py-2 px-6 rounded hover:bg-blue-700 disabled:opacity-50"
+            className="flex items-center justify-center bg-accent text-black font-medium py-2 px-6 rounded hover:bg-accent/90 disabled:opacity-50 transition-colors"
           >
             {loading ? (
               <span className="flex items-center">
@@ -134,32 +135,32 @@ export default function TestWikiPage() {
       </div>
 
       {error && (
-        <div className="bg-red-900/30 border border-red-700 p-4 rounded-lg mb-8">
+        <div className="bg-red-900/20 border border-red-600/50 p-4 rounded-lg mb-8 animate-fadeIn">
           <h2 className="text-xl font-bold mb-2 text-white flex items-center">
-            <FiInfo className="mr-2 text-red-400" /> Error
+            <HiOutlineExclamation className="mr-2 text-red-400 text-2xl" /> Error
           </h2>
-          <pre className="bg-gray-900 p-4 rounded text-red-400 whitespace-pre-wrap overflow-auto">{error}</pre>
+          <pre className="bg-main p-4 rounded text-red-400 whitespace-pre-wrap overflow-auto border border-red-900/50">{error}</pre>
         </div>
       )}
 
       {results && (
-        <div className="bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700 mb-8">
-          <h2 className="text-2xl font-bold mb-4 text-white">
+        <div className="bg-muted p-6 rounded-lg shadow-md border border-accent/30 mb-8 animate-fadeIn">
+          <h2 className="text-2xl font-bold mb-4 text-white border-b border-accent/30 pb-2">
             Search Results for "{searchTerm}" ({results.length} found)
           </h2>
           
           {results.length > 0 ? (
             <div className="space-y-6">
               {results.map((item) => (
-                <div key={item.pageid} className="bg-gray-900 rounded-lg p-4 border border-gray-700">
+                <div key={item.pageid} className="bg-main rounded-lg p-5 border border-accent/20 hover:border-accent/50 transition-all">
                   <div className="space-y-4">
                     {/* Title and type */}
-                    <div className="flex justify-between items-center flex-wrap gap-2">
-                      <h3 className="text-xl font-bold text-blue-400">
+                    <div className="flex justify-between items-center flex-wrap gap-2 border-b border-accent/20 pb-2">
+                      <h3 className="text-xl font-bold text-accent">
                         {item.title}
                       </h3>
                       {item.isVideoGame && (
-                        <span className="bg-blue-600/30 text-blue-300 font-medium text-xs py-1 px-2 rounded-md">
+                        <span className="bg-accent/20 text-accent font-medium text-xs py-1 px-3 rounded-full">
                           VIDEO GAME
                         </span>
                       )}
@@ -176,7 +177,7 @@ export default function TestWikiPage() {
                       ) : item.thumbnail && (
                         // Fallback to just the thumbnail if no infobox
                         <div className="flex-shrink-0 md:w-1/3 w-full">
-                          <div className="relative w-full aspect-[3/4] border border-gray-700 rounded overflow-hidden bg-gray-950">
+                          <div className="relative w-full aspect-[3/4] border border-accent/30 rounded overflow-hidden bg-black/50">
                             <Image 
                               src={item.thumbnail.source}
                               alt={item.title}
@@ -184,7 +185,7 @@ export default function TestWikiPage() {
                               className="object-contain"
                             />
                           </div>
-                          <p className="text-xs text-gray-400 mt-2">
+                          <p className="text-xs text-accent/70 mt-2">
                             Image via Wikipedia
                           </p>
                         </div>
@@ -194,7 +195,7 @@ export default function TestWikiPage() {
                       <div className="flex-grow">
                         {/* Text snippet with HTML formatting */}
                         <div 
-                          className="text-gray-300 mb-4"
+                          className="text-white/90 mb-4"
                           dangerouslySetInnerHTML={{ __html: item.snippet }}
                         />
                         
@@ -204,7 +205,7 @@ export default function TestWikiPage() {
                             href={`https://en.wikipedia.org/wiki/${encodeURIComponent(item.title)}`}
                             target="_blank" 
                             rel="noopener noreferrer"
-                            className="flex items-center bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded text-sm"
+                            className="flex items-center bg-accent text-black font-medium py-1 px-3 rounded-full text-sm hover:bg-accent/90 transition-colors"
                           >
                             <FiExternalLink className="mr-1" /> View on Wikipedia
                           </a>
@@ -214,7 +215,7 @@ export default function TestWikiPage() {
                               href={`https://en.wikipedia.org/w/api.php?action=parse&pageid=${item.pageid}&prop=text&format=json&origin=*`}
                               target="_blank" 
                               rel="noopener noreferrer"
-                              className="flex items-center bg-gray-700 hover:bg-gray-600 text-white py-1 px-3 rounded text-sm"
+                              className="flex items-center bg-main border border-accent/30 text-white py-1 px-3 rounded-full text-sm hover:border-accent/70 transition-colors"
                             >
                               <FiDatabase className="mr-1" /> View API Data
                             </a>
@@ -230,8 +231,10 @@ export default function TestWikiPage() {
               ))}
             </div>
           ) : (
-            <div className="bg-yellow-900/30 border border-yellow-700 p-4 rounded-lg">
-              <p className="text-yellow-300">No results found for "{searchTerm}"</p>
+            <div className="bg-yellow-900/20 border border-yellow-600/50 p-4 rounded-lg">
+              <p className="text-yellow-300 flex items-center">
+                <HiOutlineExclamation className="mr-2" /> No results found for "{searchTerm}"
+              </p>
             </div>
           )}
         </div>

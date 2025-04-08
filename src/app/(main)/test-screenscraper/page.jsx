@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { FiSearch, FiList, FiImage, FiInfo, FiAlertCircle, FiExternalLink, FiFilter, FiServer, FiX, FiMonitor, FiTag, FiMapPin, FiMaximize2 } from 'react-icons/fi';
+import { HiOutlinePhotograph, HiOutlineDeviceMobile, HiOutlineExclamation, HiOutlineDatabase } from 'react-icons/hi';
 
 export default function TestScreenScraperPage() {
   const [gameName, setGameName] = useState('Super Mario Bros');
@@ -152,13 +153,13 @@ export default function TestScreenScraperPage() {
     
     return (
       <div className="mb-8">
-        <h3 className="text-xl font-bold mb-4 text-white flex items-center">
-          <FiImage className="mr-2 text-blue-400" /> {displayTitle} ({filteredImages.length})
+        <h3 className="text-xl font-bold mb-4 text-white flex items-center border-b border-accent/30 pb-2">
+          <HiOutlinePhotograph className="mr-2 text-accent" /> {displayTitle} ({filteredImages.length})
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredImages.map((img, index) => (
-            <div key={index} className="border border-gray-700 rounded-lg p-4 bg-gray-800 shadow-md hover:border-gray-600 transition-colors">
-              <div className="relative h-48 mb-3 bg-gray-900 rounded overflow-hidden">
+            <div key={index} className="border border-accent/30 rounded-lg p-4 bg-main shadow-md hover:border-accent/50 transition-all">
+              <div className="relative h-48 mb-3 bg-black/30 rounded overflow-hidden">
                 {!failedImages[index] ? (
                   <Image 
                     src={img.url} 
@@ -169,25 +170,25 @@ export default function TestScreenScraperPage() {
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full text-red-400">
-                    <FiAlertCircle className="mr-2" /> Image failed to load
+                    <HiOutlineExclamation className="mr-2 text-xl" /> Image failed to load
                   </div>
                 )}
               </div>
-              <div className="text-sm text-gray-200 space-y-1">
-                <p className="flex items-center"><span className="font-semibold text-gray-400 w-24 inline-block"><FiTag className="inline mr-1" /> Type:</span> {img.type || 'Unknown'}</p>
+              <div className="text-sm text-white/90 space-y-1">
+                <p className="flex items-center"><span className="font-semibold text-accent/80 w-24 inline-block"><FiTag className="inline mr-1" /> Type:</span> {img.type || 'Unknown'}</p>
                 <p className="flex items-start">
-                  <span className="font-semibold text-gray-400 w-24 inline-block pt-0.5"><FiExternalLink className="inline mr-1" /> URL:</span> 
+                  <span className="font-semibold text-accent/80 w-24 inline-block pt-0.5"><FiExternalLink className="inline mr-1" /> URL:</span> 
                   <a 
                     href={img.url} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="text-blue-400 hover:underline block truncate"
+                    className="text-accent hover:text-accent/80 transition-colors block truncate"
                   >
                     {img.url}
                   </a>
                 </p>
-                <p className="flex items-center"><span className="font-semibold text-gray-400 w-24 inline-block"><FiMapPin className="inline mr-1" /> Region:</span> {img.region || 'Unknown'}</p>
-                <p className="flex items-center"><span className="font-semibold text-gray-400 w-24 inline-block"><FiMaximize2 className="inline mr-1" /> Size:</span> {img.resolution || 'Unknown'}</p>
+                <p className="flex items-center"><span className="font-semibold text-accent/80 w-24 inline-block"><FiMapPin className="inline mr-1" /> Region:</span> {img.region || 'Unknown'}</p>
+                <p className="flex items-center"><span className="font-semibold text-accent/80 w-24 inline-block"><FiMaximize2 className="inline mr-1" /> Size:</span> {img.resolution || 'Unknown'}</p>
               </div>
             </div>
           ))}
@@ -227,33 +228,33 @@ export default function TestScreenScraperPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-5xl text-gray-200">
-      <h1 className="text-3xl font-bold mb-6 text-white flex items-center">
-        <FiServer className="mr-3 text-accent" /> ScreenScraper API Test
+    <div className="container mx-auto px-4 py-8 max-w-5xl">
+      <h1 className="text-3xl font-bold mb-6 text-white flex items-center border-b border-accent/30 pb-4">
+        <HiOutlineDatabase className="mr-3 text-accent text-4xl" /> ScreenScraper API Test
       </h1>
       
-      <div className="mb-8 p-6 bg-gray-800 rounded-lg shadow-md border border-gray-700">
-        <h2 className="text-xl font-bold mb-4 text-white flex items-center">
-          <FiSearch className="mr-2 text-blue-400" /> Search Parameters
+      <div className="mb-8 p-6 bg-muted rounded-lg shadow-md border border-accent/30 hover:border-accent/50 transition-all">
+        <h2 className="text-xl font-bold mb-4 text-white flex items-center border-b border-accent/30 pb-2">
+          <FiSearch className="mr-2 text-accent" /> Search Parameters
         </h2>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1 flex items-center">
-              <FiInfo className="mr-1" /> Game Name
+            <label className="block text-sm font-medium text-white/90 mb-1 flex items-center">
+              <FiInfo className="mr-1 text-accent" /> Game Name
             </label>
             <input
               type="text"
               value={gameName}
               onChange={(e) => setGameName(e.target.value)}
-              className="w-full p-3 border border-gray-700 rounded bg-gray-900 text-white focus:outline-none focus:ring-2 focus:ring-accent"
+              className="w-full p-3 border border-accent/30 rounded bg-main text-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
               placeholder="Enter game name"
             />
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1 flex items-center">
-              <FiMonitor className="mr-1" /> Platform
+            <label className="block text-sm font-medium text-white/90 mb-1 flex items-center">
+              <HiOutlineDeviceMobile className="mr-1 text-accent" /> Platform
             </label>
             <div className="flex items-center space-x-2">
               <select
@@ -262,7 +263,7 @@ export default function TestScreenScraperPage() {
                   setPlatform(e.target.value);
                   setDirectPlatformId(null); // Clear direct platform ID when changing dropdown
                 }}
-                className="w-full p-3 border border-gray-700 rounded bg-gray-900 text-white focus:outline-none focus:ring-2 focus:ring-accent"
+                className="w-full p-3 border border-accent/30 rounded bg-main text-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
                 disabled={directPlatformId !== null}
               >
                 {platforms.map((p) => (
@@ -274,7 +275,7 @@ export default function TestScreenScraperPage() {
               {directPlatformId !== null && (
                 <button
                   onClick={() => setDirectPlatformId(null)}
-                  className="bg-red-600 text-white p-3 rounded hover:bg-red-700 flex items-center justify-center"
+                  className="bg-red-600 text-white p-3 rounded hover:bg-red-700 flex items-center justify-center transition-colors"
                   title="Clear direct platform ID"
                 >
                   <FiX />
@@ -289,13 +290,13 @@ export default function TestScreenScraperPage() {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1 flex items-center">
-              <FiFilter className="mr-1" /> Image Type
+            <label className="block text-sm font-medium text-white/90 mb-1 flex items-center">
+              <FiFilter className="mr-1 text-accent" /> Image Type
             </label>
             <select
               value={selectedImageType}
               onChange={(e) => setSelectedImageType(e.target.value)}
-              className="w-full p-3 border border-gray-700 rounded bg-gray-900 text-white focus:outline-none focus:ring-2 focus:ring-accent"
+              className="w-full p-3 border border-accent/30 rounded bg-main text-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
             >
               {imageTypes.map((type) => (
                 <option key={type.id} value={type.id}>
@@ -310,11 +311,11 @@ export default function TestScreenScraperPage() {
           <button
             onClick={handleSearch}
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-3 px-4 rounded hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center"
+            className="w-full bg-accent text-black font-medium py-3 px-4 rounded hover:bg-accent/90 disabled:opacity-50 flex items-center justify-center transition-colors"
           >
             {loading ? (
               <span className="flex items-center">
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
@@ -330,7 +331,7 @@ export default function TestScreenScraperPage() {
           <button
             onClick={fetchFullPlatformList}
             disabled={loadingPlatforms}
-            className="w-full bg-green-600 text-white py-3 px-4 rounded hover:bg-green-700 disabled:opacity-50 flex items-center justify-center"
+            className="w-full bg-main border border-accent text-white py-3 px-4 rounded hover:bg-main hover:border-accent/80 disabled:opacity-50 flex items-center justify-center transition-colors"
           >
             {loadingPlatforms ? (
               <span className="flex items-center">
@@ -350,27 +351,27 @@ export default function TestScreenScraperPage() {
       </div>
       
       {error && (
-        <div className="mb-8 p-4 bg-red-900/30 text-red-200 rounded-lg border border-red-700 flex items-center">
-          <FiAlertCircle className="mr-2 text-red-400 flex-shrink-0" />
+        <div className="mb-8 p-4 bg-red-900/20 text-red-300 rounded-lg border border-red-600/50 flex items-center animate-fadeIn">
+          <HiOutlineExclamation className="mr-2 text-red-400 flex-shrink-0 text-2xl" />
           <span>{error}</span>
         </div>
       )}
       
       {fullPlatformList && (
-        <div className="mb-8 bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700">
-          <h2 className="text-2xl font-bold mb-4 text-white flex items-center">
-            <FiList className="mr-2 text-blue-400" /> Platform List ({filteredPlatforms.length} platforms)
+        <div className="mb-8 bg-muted p-6 rounded-lg shadow-md border border-accent/30 hover:border-accent/50 transition-all animate-fadeIn">
+          <h2 className="text-2xl font-bold mb-4 text-white flex items-center border-b border-accent/30 pb-2">
+            <FiList className="mr-2 text-accent" /> Platform List ({filteredPlatforms.length} platforms)
           </h2>
           
           <div className="mb-4">
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FiSearch className="text-gray-400" />
+                <FiSearch className="text-white/50" />
               </div>
               <input
                 type="text"
                 placeholder="Search platforms..."
-                className="w-full pl-10 p-3 border border-gray-700 rounded bg-gray-900 text-white focus:outline-none focus:ring-2 focus:ring-accent"
+                className="w-full pl-10 p-3 border border-accent/30 rounded bg-main text-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
                 onChange={(e) => {
                   const filter = e.target.value.toLowerCase();
                   const filtered = fullPlatformList.filter(p => 
@@ -385,33 +386,33 @@ export default function TestScreenScraperPage() {
           </div>
           
           <div className="overflow-x-auto">
-            <table className="min-w-full bg-gray-900 text-gray-200 border border-gray-700 rounded">
+            <table className="min-w-full bg-main text-white border border-accent/30 rounded">
               <thead>
-                <tr className="bg-gray-800">
-                  <th className="px-4 py-2 text-left">ID</th>
-                  <th className="px-4 py-2 text-left">Platform ID</th>
-                  <th className="px-4 py-2 text-left">Name</th>
-                  <th className="px-4 py-2 text-left">Company</th>
-                  <th className="px-4 py-2 text-left">Type</th>
-                  <th className="px-4 py-2 text-left">Year</th>
-                  <th className="px-4 py-2 text-left">ROM Extensions</th>
-                  <th className="px-4 py-2 text-left">Action</th>
+                <tr className="bg-muted">
+                  <th className="px-4 py-2 text-left border-b border-accent/20">ID</th>
+                  <th className="px-4 py-2 text-left border-b border-accent/20">Platform ID</th>
+                  <th className="px-4 py-2 text-left border-b border-accent/20">Name</th>
+                  <th className="px-4 py-2 text-left border-b border-accent/20">Company</th>
+                  <th className="px-4 py-2 text-left border-b border-accent/20">Type</th>
+                  <th className="px-4 py-2 text-left border-b border-accent/20">Year</th>
+                  <th className="px-4 py-2 text-left border-b border-accent/20">ROM Extensions</th>
+                  <th className="px-4 py-2 text-left border-b border-accent/20">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredPlatforms.map((platform, index) => (
-                  <tr key={platform.id || index} className={index % 2 === 0 ? 'bg-gray-900' : 'bg-gray-800'}>
-                    <td className="px-4 py-2 border-t border-gray-700">{platform.id}</td>
-                    <td className="px-4 py-2 border-t border-gray-700">{platform.platformId}</td>
-                    <td className="px-4 py-2 border-t border-gray-700">{platform.name}</td>
-                    <td className="px-4 py-2 border-t border-gray-700">{platform.company}</td>
-                    <td className="px-4 py-2 border-t border-gray-700">{platform.type}</td>
-                    <td className="px-4 py-2 border-t border-gray-700">{platform.year}</td>
-                    <td className="px-4 py-2 border-t border-gray-700">{platform.extensions}</td>
-                    <td className="px-4 py-2 border-t border-gray-700">
+                  <tr key={platform.id || index} className={index % 2 === 0 ? 'bg-main' : 'bg-muted/50'}>
+                    <td className="px-4 py-2 border-t border-accent/20">{platform.id}</td>
+                    <td className="px-4 py-2 border-t border-accent/20">{platform.platformId}</td>
+                    <td className="px-4 py-2 border-t border-accent/20">{platform.name}</td>
+                    <td className="px-4 py-2 border-t border-accent/20">{platform.company}</td>
+                    <td className="px-4 py-2 border-t border-accent/20">{platform.type}</td>
+                    <td className="px-4 py-2 border-t border-accent/20">{platform.year}</td>
+                    <td className="px-4 py-2 border-t border-accent/20">{platform.extensions}</td>
+                    <td className="px-4 py-2 border-t border-accent/20">
                       <button
                         onClick={() => handleUseThisPlatform(platform.platformId)}
-                        className="bg-blue-600 text-white py-1 px-2 text-xs rounded hover:bg-blue-700"
+                        className="bg-accent text-black font-medium py-1 px-2 text-xs rounded hover:bg-accent/90 transition-colors"
                       >
                         Use This
                       </button>
@@ -425,11 +426,11 @@ export default function TestScreenScraperPage() {
       )}
       
       {rawResponse && (
-        <div className="mb-8 bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700">
-          <h2 className="text-2xl font-bold mb-4 text-white flex items-center">
-            <FiServer className="mr-2 text-blue-400" /> Raw API Response
+        <div className="mb-8 bg-muted p-6 rounded-lg shadow-md border border-accent/30 hover:border-accent/50 transition-all animate-fadeIn">
+          <h2 className="text-2xl font-bold mb-4 text-white flex items-center border-b border-accent/30 pb-2">
+            <FiServer className="mr-2 text-accent" /> Raw API Response
           </h2>
-          <pre className="bg-gray-900 p-4 rounded overflow-auto max-h-96 text-sm text-gray-300 border border-gray-700">
+          <pre className="bg-main p-4 rounded overflow-auto max-h-96 text-sm text-white/90 border border-accent/30">
             {JSON.stringify(rawResponse, null, 2)}
           </pre>
         </div>
@@ -438,53 +439,53 @@ export default function TestScreenScraperPage() {
       {data && data.gameData && (
         <div className="space-y-8">
           {data.gameData.warning && (
-            <div className="bg-yellow-800/30 text-yellow-200 p-4 rounded-lg border border-yellow-600 flex items-start">
-              <FiAlertCircle className="mr-2 text-yellow-400 flex-shrink-0 mt-1" />
+            <div className="bg-yellow-900/20 text-yellow-300 p-4 rounded-lg border border-yellow-600/50 flex items-start animate-fadeIn">
+              <HiOutlineExclamation className="mr-2 text-yellow-400 flex-shrink-0 mt-1 text-2xl" />
               <div>
                 <strong className="font-bold">Warning:</strong> {data.gameData.warning}
               </div>
             </div>
           )}
           
-          <div className="bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700">
-            <h2 className="text-2xl font-bold mb-4 text-white flex items-center">
-              <FiInfo className="mr-2 text-blue-400" /> Game Information
+          <div className="bg-muted p-6 rounded-lg shadow-md border border-accent/30 hover:border-accent/50 transition-all animate-fadeIn">
+            <h2 className="text-2xl font-bold mb-4 text-white flex items-center border-b border-accent/30 pb-2">
+              <FiInfo className="mr-2 text-accent" /> Game Information
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-gray-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <p className="flex items-center"><span className="font-semibold text-gray-400 w-28 inline-block">Name:</span> {data.gameData.name}</p>
-                <p className="flex items-center"><span className="font-semibold text-gray-400 w-28 inline-block">ID:</span> {data.gameData.id}</p>
-                <p className="flex items-center"><span className="font-semibold text-gray-400 w-28 inline-block">System:</span> {data.gameData.system}</p>
-                <p className="flex items-center"><span className="font-semibold text-gray-400 w-28 inline-block">Region:</span> {data.gameData.region}</p>
-                <p className="flex items-center"><span className="font-semibold text-gray-400 w-28 inline-block">Publisher:</span> {data.gameData.publisher}</p>
-                <p className="flex items-center"><span className="font-semibold text-gray-400 w-28 inline-block">Developer:</span> {data.gameData.developer}</p>
-                <p className="flex items-center"><span className="font-semibold text-gray-400 w-28 inline-block">Players:</span> {data.gameData.players}</p>
-                <p className="flex items-center"><span className="font-semibold text-gray-400 w-28 inline-block">Rating:</span> {data.gameData.rating}</p>
-                <p className="flex items-center"><span className="font-semibold text-gray-400 w-28 inline-block">Release Date:</span> {data.gameData.releaseDate}</p>
+                <p className="flex items-center"><span className="font-semibold text-accent/80 w-28 inline-block">Name:</span> {data.gameData.name}</p>
+                <p className="flex items-center"><span className="font-semibold text-accent/80 w-28 inline-block">ID:</span> {data.gameData.id}</p>
+                <p className="flex items-center"><span className="font-semibold text-accent/80 w-28 inline-block">System:</span> {data.gameData.system}</p>
+                <p className="flex items-center"><span className="font-semibold text-accent/80 w-28 inline-block">Region:</span> {data.gameData.region}</p>
+                <p className="flex items-center"><span className="font-semibold text-accent/80 w-28 inline-block">Publisher:</span> {data.gameData.publisher}</p>
+                <p className="flex items-center"><span className="font-semibold text-accent/80 w-28 inline-block">Developer:</span> {data.gameData.developer}</p>
+                <p className="flex items-center"><span className="font-semibold text-accent/80 w-28 inline-block">Players:</span> {data.gameData.players}</p>
+                <p className="flex items-center"><span className="font-semibold text-accent/80 w-28 inline-block">Rating:</span> {data.gameData.rating}</p>
+                <p className="flex items-center"><span className="font-semibold text-accent/80 w-28 inline-block">Release Date:</span> {data.gameData.releaseDate}</p>
               </div>
               <div className="space-y-2">
-                <p className="flex items-center"><span className="font-semibold text-gray-400 w-28 inline-block">Genre:</span> {data.gameData.genre}</p>
-                <p className="flex items-center"><span className="font-semibold text-gray-400 w-28 inline-block">Perspective:</span> {data.gameData.perspective}</p>
+                <p className="flex items-center"><span className="font-semibold text-accent/80 w-28 inline-block">Genre:</span> {data.gameData.genre}</p>
+                <p className="flex items-center"><span className="font-semibold text-accent/80 w-28 inline-block">Perspective:</span> {data.gameData.perspective}</p>
                 <div className="flex items-start">
-                  <span className="font-semibold text-gray-400 w-28 inline-block mt-1">Description:</span> 
-                  <p className="text-gray-300">{data.gameData.description}</p>
+                  <span className="font-semibold text-accent/80 w-28 inline-block mt-1">Description:</span> 
+                  <p className="text-white/90">{data.gameData.description}</p>
                 </div>
               </div>
             </div>
           </div>
           
           {/* Display direct URLs for box art, title screen, and screenshots */}
-          <div className="bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700">
-            <h2 className="text-2xl font-bold mb-4 text-white flex items-center">
-              <FiImage className="mr-2 text-blue-400" /> Quick Image Links
+          <div className="bg-muted p-6 rounded-lg shadow-md border border-accent/30 hover:border-accent/50 transition-all animate-fadeIn">
+            <h2 className="text-2xl font-bold mb-4 text-white flex items-center border-b border-accent/30 pb-2">
+              <FiImage className="mr-2 text-accent" /> Quick Image Links
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {data.gameData.boxUrl && (
-                <div className="bg-gray-900 p-4 rounded-lg border border-gray-700">
+                <div className="bg-main p-4 rounded-lg border border-accent/30 hover:border-accent/50 transition-all">
                   <h3 className="text-lg font-semibold mb-3 text-white flex items-center">
-                    <FiImage className="mr-2 text-blue-400" /> Box Art
+                    <FiImage className="mr-2 text-accent" /> Box Art
                   </h3>
-                  <div className="relative h-48 mb-3 border border-gray-700 rounded overflow-hidden bg-gray-950">
+                  <div className="relative h-48 mb-3 border border-accent/20 rounded overflow-hidden bg-black/30">
                     <Image 
                       src={data.gameData.boxUrl} 
                       alt="Box Art"
@@ -495,27 +496,27 @@ export default function TestScreenScraperPage() {
                         e.target.nextSibling.style.display = 'flex';
                       }}
                     />
-                    <div className="hidden items-center justify-center h-full text-red-400 bg-gray-900">
-                      <FiAlertCircle className="mr-2" /> Image failed to load
+                    <div className="hidden items-center justify-center h-full text-red-400 bg-main/50">
+                      <HiOutlineExclamation className="mr-2 text-xl" /> Image failed to load
                     </div>
                   </div>
                   <a 
                     href={data.gameData.boxUrl} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="text-blue-400 hover:underline text-sm block truncate flex items-center"
+                    className="text-accent hover:text-accent/80 transition-colors text-sm block truncate flex items-center"
                   >
-                    <FiExternalLink className="mr-1 flex-shrink-0" /> {data.gameData.boxUrl}
+                    <FiExternalLink className="mr-1 flex-shrink-0" /> View Full Size
                   </a>
                 </div>
               )}
               
               {data.gameData.titleUrl && (
-                <div className="bg-gray-900 p-4 rounded-lg border border-gray-700">
+                <div className="bg-main p-4 rounded-lg border border-accent/30 hover:border-accent/50 transition-all">
                   <h3 className="text-lg font-semibold mb-3 text-white flex items-center">
-                    <FiImage className="mr-2 text-blue-400" /> Title Screen
+                    <FiImage className="mr-2 text-accent" /> Title Screen
                   </h3>
-                  <div className="relative h-48 mb-3 border border-gray-700 rounded overflow-hidden bg-gray-950">
+                  <div className="relative h-48 mb-3 border border-accent/20 rounded overflow-hidden bg-black/30">
                     <Image 
                       src={data.gameData.titleUrl} 
                       alt="Title Screen"
@@ -526,27 +527,27 @@ export default function TestScreenScraperPage() {
                         e.target.nextSibling.style.display = 'flex';
                       }}
                     />
-                    <div className="hidden items-center justify-center h-full text-red-400 bg-gray-900">
-                      <FiAlertCircle className="mr-2" /> Image failed to load
+                    <div className="hidden items-center justify-center h-full text-red-400 bg-main/50">
+                      <HiOutlineExclamation className="mr-2 text-xl" /> Image failed to load
                     </div>
                   </div>
                   <a 
                     href={data.gameData.titleUrl} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="text-blue-400 hover:underline text-sm block truncate flex items-center"
+                    className="text-accent hover:text-accent/80 transition-colors text-sm block truncate flex items-center"
                   >
-                    <FiExternalLink className="mr-1 flex-shrink-0" /> {data.gameData.titleUrl}
+                    <FiExternalLink className="mr-1 flex-shrink-0" /> View Full Size
                   </a>
                 </div>
               )}
               
               {data.gameData.screenshotUrl && (
-                <div className="bg-gray-900 p-4 rounded-lg border border-gray-700">
+                <div className="bg-main p-4 rounded-lg border border-accent/30 hover:border-accent/50 transition-all">
                   <h3 className="text-lg font-semibold mb-3 text-white flex items-center">
-                    <FiImage className="mr-2 text-blue-400" /> Screenshot
+                    <FiImage className="mr-2 text-accent" /> Screenshot
                   </h3>
-                  <div className="relative h-48 mb-3 border border-gray-700 rounded overflow-hidden bg-gray-950">
+                  <div className="relative h-48 mb-3 border border-accent/20 rounded overflow-hidden bg-black/30">
                     <Image 
                       src={data.gameData.screenshotUrl} 
                       alt="Screenshot"
@@ -557,17 +558,17 @@ export default function TestScreenScraperPage() {
                         e.target.nextSibling.style.display = 'flex';
                       }}
                     />
-                    <div className="hidden items-center justify-center h-full text-red-400 bg-gray-900">
-                      <FiAlertCircle className="mr-2" /> Image failed to load
+                    <div className="hidden items-center justify-center h-full text-red-400 bg-main/50">
+                      <HiOutlineExclamation className="mr-2 text-xl" /> Image failed to load
                     </div>
                   </div>
                   <a 
                     href={data.gameData.screenshotUrl} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="text-blue-400 hover:underline text-sm block truncate flex items-center"
+                    className="text-accent hover:text-accent/80 transition-colors text-sm block truncate flex items-center"
                   >
-                    <FiExternalLink className="mr-1 flex-shrink-0" /> {data.gameData.screenshotUrl}
+                    <FiExternalLink className="mr-1 flex-shrink-0" /> View Full Size
                   </a>
                 </div>
               )}

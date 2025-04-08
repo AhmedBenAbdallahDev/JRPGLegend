@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { FiSearch, FiExternalLink, FiBook, FiImage, FiInfo, FiClock } from 'react-icons/fi';
+import { HiOutlineBookOpen, HiOutlineExclamation } from 'react-icons/hi';
 
 export default function WikimediaTestPage() {
   const [loading, setLoading] = useState(false);
@@ -37,14 +38,14 @@ export default function WikimediaTestPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-5xl text-gray-200">
-      <h1 className="text-3xl font-bold mb-6 text-white flex items-center">
-        <FiBook className="mr-3 text-accent" /> Wikimedia Cover Test
+    <div className="container mx-auto px-4 py-8 max-w-5xl">
+      <h1 className="text-3xl font-bold mb-6 text-white flex items-center border-b border-accent/30 pb-4">
+        <HiOutlineBookOpen className="mr-3 text-accent text-4xl" /> Wikimedia Cover Test
       </h1>
       
-      <div className="bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700 mb-8">
+      <div className="bg-muted p-6 rounded-lg shadow-md border border-accent/30 mb-8 hover:border-accent/50 transition-all">
         <h2 className="text-xl font-semibold mb-4 text-white flex items-center">
-          <FiSearch className="mr-2 text-blue-400" /> Search for Game Cover
+          <FiSearch className="mr-2 text-accent" /> Search for Game Cover
         </h2>
         
         <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4">
@@ -54,17 +55,17 @@ export default function WikimediaTestPage() {
               value={gameTitle}
               onChange={(e) => setGameTitle(e.target.value)}
               placeholder="Enter game title..."
-              className="w-full p-3 rounded bg-gray-900 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-accent"
+              className="w-full p-3 rounded bg-main border border-accent/30 text-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
             />
           </div>
           <button 
             type="submit" 
             disabled={loading}
-            className="flex items-center justify-center bg-blue-600 text-white py-2 px-6 rounded hover:bg-blue-700 disabled:opacity-50"
+            className="flex items-center justify-center bg-accent text-black font-medium py-2 px-6 rounded hover:bg-accent/90 disabled:opacity-50 transition-colors"
           >
             {loading ? (
               <span className="flex items-center">
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
@@ -80,26 +81,26 @@ export default function WikimediaTestPage() {
       </div>
       
       {error && (
-        <div className="bg-red-900/30 border border-red-700 p-4 rounded-lg mb-8">
+        <div className="bg-red-900/20 border border-red-600/50 p-4 rounded-lg mb-8 animate-fadeIn">
           <h2 className="text-xl font-bold mb-2 text-white flex items-center">
-            <FiInfo className="mr-2 text-red-400" /> Error
+            <HiOutlineExclamation className="mr-2 text-red-400 text-2xl" /> Error
           </h2>
           <p className="text-red-300">{error}</p>
         </div>
       )}
       
       {searchResults && (
-        <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700 shadow-lg">
-          <div className="p-4 border-b border-gray-700 bg-gray-900/50">
+        <div className="bg-muted rounded-lg overflow-hidden border border-accent/30 shadow-lg hover:border-accent/50 transition-all animate-fadeIn">
+          <div className="p-4 border-b border-accent/30 bg-main">
             <h2 className="text-xl font-semibold text-white">{searchResults.title}</h2>
             {searchResults.extract && (
-              <p className="text-gray-300 mt-2">{searchResults.extract}</p>
+              <p className="text-white/90 mt-2">{searchResults.extract}</p>
             )}
           </div>
           
           <div className="p-6 flex flex-col items-center">
             {searchResults.coverUrl ? (
-              <div className="relative h-64 w-full max-w-md mb-4 bg-gray-900 border border-gray-700 p-2 rounded-lg overflow-hidden">
+              <div className="relative h-64 w-full max-w-md mb-4 bg-main border border-accent/30 p-2 rounded-lg overflow-hidden">
                 <Image 
                   src={searchResults.coverUrl}
                   alt={searchResults.title}
@@ -108,8 +109,8 @@ export default function WikimediaTestPage() {
                 />
               </div>
             ) : (
-              <div className="text-yellow-300 mb-4 bg-yellow-900/30 p-4 rounded-lg border border-yellow-700 flex items-center">
-                <FiImage className="mr-2" /> No cover image available
+              <div className="text-yellow-300 mb-4 bg-yellow-900/20 p-4 rounded-lg border border-yellow-600/50 flex items-center">
+                <HiOutlineExclamation className="mr-2 text-xl" /> No cover image available
               </div>
             )}
             
@@ -118,17 +119,17 @@ export default function WikimediaTestPage() {
                 href={searchResults.pageUrl} 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md transition-colors mt-4"
+                className="flex items-center gap-2 bg-accent text-black font-medium py-2 px-4 rounded-md hover:bg-accent/90 transition-colors mt-4"
               >
                 <FiExternalLink /> View on Wikipedia
               </a>
             )}
           </div>
           
-          <div className="bg-gray-900/50 px-4 py-3 text-sm text-gray-400 border-t border-gray-700">
-            <p className="flex items-center"><FiInfo className="mr-2" /> Source: {searchResults.source}</p>
+          <div className="bg-main px-4 py-3 text-sm text-white/70 border-t border-accent/30">
+            <p className="flex items-center"><FiInfo className="mr-2 text-accent" /> Source: {searchResults.source}</p>
             {searchResults.cached && (
-              <p className="flex items-center mt-1"><FiClock className="mr-2" /> Cached until: {new Date(searchResults.expiresAt).toLocaleString()}</p>
+              <p className="flex items-center mt-1"><FiClock className="mr-2 text-accent" /> Cached until: {new Date(searchResults.expiresAt).toLocaleString()}</p>
             )}
           </div>
         </div>
