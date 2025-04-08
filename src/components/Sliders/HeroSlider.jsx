@@ -1,6 +1,7 @@
 "use client";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, Pagination, Scrollbar, A11y } from "swiper/modules";
+import { PlayIcon } from "@heroicons/react/24/solid";
 import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
@@ -44,9 +45,10 @@ export default function HeroSlider() {
             </p>
             <a
               href="#"
-              className="text-sm bg-accent-gradient py-3 px-6 rounded-xl border border-yellow-400 uppercase"
+              className="inline-flex items-center gap-2 text-black font-medium bg-yellow-500 hover:bg-yellow-400 py-2 px-5 rounded-lg transition-colors"
             >
-              Play Mario
+              <PlayIcon className="w-4 h-4" />
+              <span>Play Now</span>
             </a>
           </div>
         </SwiperSlide>
@@ -66,9 +68,10 @@ export default function HeroSlider() {
             </p>
             <a
               href="#"
-              className="text-sm bg-accent-gradient py-3 px-6 rounded-xl border border-yellow-400 uppercase"
+              className="inline-flex items-center gap-2 text-black font-medium bg-yellow-500 hover:bg-yellow-400 py-2 px-5 rounded-lg transition-colors"
             >
-              Play Mario
+              <PlayIcon className="w-4 h-4" />
+              <span>Play Now</span>
             </a>
           </div>
         </SwiperSlide>

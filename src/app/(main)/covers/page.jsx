@@ -183,7 +183,7 @@ export default function CoverManagerPage() {
       alert('Please select covers to delete');
       return;
     }
-
+    
     if (!confirm(`Are you sure you want to delete ${selectedCovers.size} selected covers?`)) {
       return;
     }
@@ -272,15 +272,15 @@ export default function CoverManagerPage() {
             <p className="text-gray-300">Estimated Size: <span className="text-accent font-bold">{cacheStats.size} MB</span></p>
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={purgeAllCache}
+          <button
+            onClick={purgeAllCache}
               className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded flex items-center gap-2"
-            >
+          >
               <FiTrash2 /> Clear All Cache
-            </button>
+          </button>
           </div>
         </div>
-
+        
         {/* Bulk Delete Grid */}
         <div>
           <h3 className="text-lg font-semibold mb-3 text-white">Bulk Delete by Console</h3>
@@ -362,15 +362,15 @@ export default function CoverManagerPage() {
           </div>
         </div>
       </div>
-
+      
       {/* Search and Filter Controls */}
       <div className="bg-main p-4 rounded-lg mb-8">
         <div className="flex flex-wrap gap-4 mb-4">
           <div className="flex-1 min-w-[200px]">
             <label className="block text-sm font-medium text-gray-300 mb-1">Search Cached Covers</label>
             <div className="relative">
-              <input
-                type="text"
+            <input
+              type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by game name..."
@@ -396,16 +396,16 @@ export default function CoverManagerPage() {
         {selectedCovers.size > 0 && (
           <div className="flex justify-between items-center mb-4">
             <span className="text-accent">{selectedCovers.size} covers selected</span>
-            <button
+        <button
               onClick={deleteSelectedCovers}
               className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded flex items-center gap-2"
-            >
+        >
               <FiTrash2 /> Delete Selected
-            </button>
+        </button>
           </div>
         )}
       </div>
-
+      
       {/* Cached Covers Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {filteredCovers.map((cover) => (
@@ -416,13 +416,13 @@ export default function CoverManagerPage() {
             }`}
           >
             <div className="aspect-square relative mb-2">
-              <Image
+                  <Image
                 src={cover.url}
                 alt={cover.gameName}
                 fill
                 className="object-cover rounded"
-              />
-            </div>
+                  />
+                </div>
             <div className="flex justify-between items-start">
               <div>
                 <h3 className="font-medium text-white truncate">{cover.gameName}</h3>
@@ -439,7 +439,7 @@ export default function CoverManagerPage() {
             </div>
           </div>
         ))}
-      </div>
+        </div>
     </div>
   );
 } 

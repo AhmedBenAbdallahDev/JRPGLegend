@@ -1,7 +1,7 @@
 import Image from "next/image"
 import Search from "@/components/Search"
 import MobileNav from "@/components/MobileNav"
-import { Cog8ToothIcon } from "@heroicons/react/24/outline"
+import { Cog8ToothIcon, PlusCircleIcon } from "@heroicons/react/24/outline"
 import Link from "next/link"
 
 export default function Header() {
@@ -23,9 +23,10 @@ export default function Header() {
 
       <Link 
         href="/game/add" 
-        className="text-sm bg-accent-gradient py-2 px-4 rounded-xl border border-yellow-400 uppercase"
+        className="flex items-center gap-1 text-black font-medium bg-yellow-500 hover:bg-yellow-400 py-1.5 px-3 rounded-lg transition-colors"
       >
-        Add Game
+        <PlusCircleIcon className="w-4 h-4" />
+        <span>Add Game</span>
       </Link>
 
     </header>

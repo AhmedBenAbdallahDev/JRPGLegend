@@ -6,6 +6,7 @@ import GameCategoryWithCovers from "@/components/GameCategoryWithCovers";
 import { getGameCategories, getCategoryBySlug } from "@/lib/gameQueries";
 import { SiNintendo, SiPlaystation } from 'react-icons/si';
 import { FaGamepad } from 'react-icons/fa';
+import { PlusCircleIcon } from "@heroicons/react/24/outline";
 
 export default async function Home() {
   try {
@@ -36,9 +37,10 @@ export default async function Home() {
           </a>
           <a 
             href="/game/add" 
-            className="inline-block bg-accent-gradient py-3 px-6 rounded-xl border border-yellow-400 uppercase hover:bg-accent/80 transition-colors"
+            className="inline-flex items-center gap-2 text-black font-medium bg-yellow-500 hover:bg-yellow-400 py-3 px-5 rounded-lg transition-colors"
           >
-            ➕ Add Your Game
+            <PlusCircleIcon className="w-5 h-5" />
+            <span>Add Your Game</span>
           </a>
         </div>
 

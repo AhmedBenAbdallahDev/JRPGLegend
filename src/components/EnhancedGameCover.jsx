@@ -83,7 +83,7 @@ export default function EnhancedGameCover({
     setLoading(true);
     
     const cacheKey = game.image || `${source}:${game.title}:${game.core}`;
-    
+
     // Function to save to localStorage cache
     const saveToLocalCache = (key, url) => {
       try {
@@ -104,12 +104,12 @@ export default function EnhancedGameCover({
       // Try to use a special image reference
       if (game.image) {
         if (game.image.startsWith('tgdb:')) {
-          fetchTGDBImage(game.image);
+            fetchTGDBImage(game.image);
           return;
         } 
         
         if (game.image.startsWith('screenscraper:')) {
-          fetchScreenscraperImage(game.image);
+            fetchScreenscraperImage(game.image);
           return;
         }
         
@@ -123,8 +123,8 @@ export default function EnhancedGameCover({
               const response = await fetch(`/api/game-images?name=${encodeURIComponent(title)}${game.core ? `&console=${encodeURIComponent(game.core)}` : ''}`);
               const data = await response.json();
               
-              if (data.success && data.imageUrl) {
-                setCoverUrl(data.imageUrl);
+                  if (data.success && data.imageUrl) {
+                    setCoverUrl(data.imageUrl);
                 saveToLocalCache(game.image, data.imageUrl);
               }
             }
@@ -139,7 +139,7 @@ export default function EnhancedGameCover({
       
       // If no special reference but have title and core, try to fetch based on source
       if (game.title && game.core) {
-        fetchGameCover(source);
+          fetchGameCover(source);
         return;
       }
       
@@ -583,7 +583,7 @@ export async function fetchGameCover(gameTitle, core, preferredSource = 'auto') 
         
         // Cache in localStorage permanently
         try {
-          if (typeof localStorage !== 'undefined') {
+        if (typeof localStorage !== 'undefined') {
             const cacheData = {
               url: extractedImageUrl,
               title: exactTitle,
