@@ -8,6 +8,80 @@ const coverCache = new Map();
 // Default image if nothing else is available
 const defaultImage = '/game/default-image.png';
 
+// Add console name mappings
+const consoleMappings = {
+  'n64': 'nintendo 64',
+  'nes': ['nintendo entertainment system', 'famicom'],
+  'snes': ['super nintendo entertainment system', 'super famicom'],
+  'gba': 'game boy advance',
+  'gbc': 'game boy color',
+  'gb': 'game boy',
+  'ds': 'nintendo ds',
+  '3ds': 'nintendo 3ds',
+  'wii': 'nintendo wii',
+  'wii u': 'nintendo wii u',
+  'switch': 'nintendo switch',
+  'gamecube': 'nintendo gamecube',
+  'genesis': ['sega genesis', 'mega drive'],
+  'saturn': 'sega saturn',
+  'dreamcast': 'sega dreamcast',
+  'ps1': ['playstation', 'playstation 1'],
+  'ps2': 'playstation 2',
+  'ps3': 'playstation 3',
+  'ps4': 'playstation 4',
+  'ps5': 'playstation 5',
+  'psp': 'playstation portable',
+  'vita': 'playstation vita'
+};
+
+// Function to check if a platform matches our console
+const isMatchingConsole = (platformText, ourConsole) => {
+  if (!platformText || !ourConsole) return false;
+  
+  const platformLower = platformText.toLowerCase();
+  const consoleLower = ourConsole.toLowerCase();
+  
+  // Direct match
+  if (platformLower === consoleLower) return true;
+  
+  // Check mappings
+  const mappings = consoleMappings[consoleLower];
+  if (mappings) {
+    if (Array.isArray(mappings)) {
+      return mappings.some(mapping => platformLower.includes(mapping));
+    }
+    return platformLower.includes(mappings);
+  }
+  
+  return false;
+};
+
+// Function to extract platforms from infobox
+const extractPlatformsFromInfobox = (html) => {
+  if (!html) return [];
+  
+  // Try to find the infobox
+  const infoboxMatch = html.match(/<table class="[^"]*infobox[^"]*"[^>]*>([\s\S]*?)<\/table>/i);
+  if (!infoboxMatch) return [];
+  
+  const infoboxHtml = infoboxMatch[0];
+  
+  // Look for the Platform(s) row
+  const platformRow = infoboxHtml.match(/<tr[^>]*>[\s\S]*?Platform[^<]*<\/th>[\s\S]*?<td[^>]*>([\s\S]*?)<\/td>[\s\S]*?<\/tr>/i);
+  if (!platformRow) return [];
+  
+  // Extract platform text and clean it
+  const platformText = platformRow[1]
+    .replace(/<[^>]+>/g, '') // Remove HTML tags
+    .replace(/\[\[([^\]]+)\]\]/g, '$1') // Remove wiki links
+    .replace(/\[([^\]]+)\]/g, '$1') // Remove external links
+    .split(/[,•]/) // Split by comma or bullet
+    .map(p => p.trim())
+    .filter(p => p.length > 0);
+  
+  return platformText;
+};
+
 // Function to get image from localStorage - moved outside component for first-render access
 const getFromLocalCache = (key) => {
   try {
@@ -342,9 +416,9 @@ export default function EnhancedGameCover({
       try {
         console.log(`[EnhancedGameCover] Using Wiki Image Extraction method for: ${game.title}`);
         
-        // Step 1: First, search for the page to get the exact title - Same as in Wiki Image Extraction Test
+        // Step 1: Search for the game by title only
         console.log(`[EnhancedGameCover] Step 1 - Searching for: ${game.title}`);
-        const searchQuery = `${game.title} ${game.core} game`;
+        const searchQuery = `${game.title} game`;
         console.log(`[EnhancedGameCover] ===== SEARCH QUERY =====`);
         console.log(`[EnhancedGameCover] Game Title: ${game.title}`);
         console.log(`[EnhancedGameCover] Console: ${game.core}`);
@@ -364,25 +438,42 @@ export default function EnhancedGameCover({
           throw new Error('No search results found');
         }
         
-        // Filter out console pages and prioritize game pages
-        const filteredResults = searchData.query.search.filter(result => {
-          const title = result.title.toLowerCase();
-          const consoleName = game.core.toLowerCase();
-          // Exclude pages that are just about the console
-          return !title.includes(consoleName) || title.includes(game.title.toLowerCase());
-        });
-        
-        if (filteredResults.length === 0) {
-          throw new Error('No suitable game pages found');
+        // Step 2: Check each result's infobox for matching platform
+        let matchingPage = null;
+        for (const result of searchData.query.search) {
+          const pageTitle = result.title;
+          console.log(`[EnhancedGameCover] Checking page: ${pageTitle}`);
+          
+          // Fetch the page content
+          const contentResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=parse&page=${encodeURIComponent(pageTitle)}&prop=text&format=json&origin=*`);
+          
+          if (!contentResponse.ok) continue;
+          
+          const contentData = await contentResponse.json();
+          if (!contentData.parse?.text?.['*']) continue;
+          
+          const htmlContent = contentData.parse.text['*'];
+          const platforms = extractPlatformsFromInfobox(htmlContent);
+          
+          console.log(`[EnhancedGameCover] Found platforms:`, platforms);
+          
+          // Check if any platform matches our console
+          if (platforms.some(platform => isMatchingConsole(platform, game.core))) {
+            matchingPage = pageTitle;
+            break;
+          }
         }
         
-        // Get the exact title from the first filtered result
-        const exactTitle = filteredResults[0].title;
-        console.log(`[EnhancedGameCover] Found exact title: "${exactTitle}"`);
+        if (!matchingPage) {
+          throw new Error('No matching game page found for the specified console');
+        }
         
+        console.log(`[EnhancedGameCover] Found matching page: ${matchingPage}`);
+        
+        // Continue with image extraction using the matching page...
         // Step 2: Now fetch the raw HTML content to extract images - Same as in Wiki Image Extraction Test
-        console.log(`[EnhancedGameCover] Step 2 - Fetching HTML content for: ${exactTitle}`);
-        const contentResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=parse&page=${encodeURIComponent(exactTitle)}&prop=text&format=json&origin=*`);
+        console.log(`[EnhancedGameCover] Step 2 - Fetching HTML content for: ${matchingPage}`);
+        const contentResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=parse&page=${encodeURIComponent(matchingPage)}&prop=text&format=json&origin=*`);
         
         if (!contentResponse.ok) {
           throw new Error(`Failed to fetch page content: ${contentResponse.status}`);
@@ -411,7 +502,7 @@ export default function EnhancedGameCover({
             if (typeof window !== 'undefined') {
               const cacheData = {
                 url: extractedImageUrl,
-                title: exactTitle,
+                title: matchingPage,
                 source: 'wikimedia',
                 timestamp: Date.now()
               };
@@ -426,8 +517,8 @@ export default function EnhancedGameCover({
         }
         
         // Step 3: If no image found in HTML, try the thumbnail API - Same as in Wiki Image Extraction Test
-        console.log(`[EnhancedGameCover] Step 3 - No image in HTML, trying thumbnail API for: ${exactTitle}`);
-        const thumbnailResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(exactTitle)}&prop=pageimages&format=json&pithumbsize=500&origin=*`);
+        console.log(`[EnhancedGameCover] Step 3 - No image in HTML, trying thumbnail API for: ${matchingPage}`);
+        const thumbnailResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(matchingPage)}&prop=pageimages&format=json&pithumbsize=500&origin=*`);
         
         if (thumbnailResponse.ok) {
           const thumbnailData = await thumbnailResponse.json();
@@ -449,7 +540,7 @@ export default function EnhancedGameCover({
                 if (typeof window !== 'undefined') {
                   const cacheData = {
                     url: thumbnail,
-                    title: exactTitle,
+                    title: matchingPage,
                     source: 'wikimedia',
                     timestamp: Date.now()
                   };
