@@ -5,6 +5,25 @@ import Image from 'next/image';
 // Simple in-memory cache for cover URLs to reduce API calls during the session
 const coverCache = new Map();
 
+// Default image if nothing else is available
+const defaultImage = '/game/default-image.png';
+
+// Function to get image from localStorage - moved outside component for first-render access
+const getFromLocalCache = (key) => {
+  try {
+    if (typeof window !== 'undefined') {
+      const cachedData = localStorage.getItem(`cover_${key}`);
+      if (cachedData) {
+        const { url } = JSON.parse(cachedData);
+        return url;
+      }
+    }
+    return null;
+  } catch (err) {
+    return null;
+  }
+};
+
 export default function EnhancedGameCover({ 
   game, 
   width = 300, 
@@ -12,79 +31,59 @@ export default function EnhancedGameCover({
   className = '',
   source = 'wikimedia' // Default to wikimedia. Options: 'wikimedia', 'screenscraper', 'tgdb', or 'auto'
 }) {
-  const [coverUrl, setCoverUrl] = useState(() => {
-    // Initialize with cached URL if available to avoid flicker
-    try {
-      // Check memory cache first (fastest)
-      const cacheKey = game?.image || `${source}:${game?.title}:${game?.core}`;
-      if (coverCache.has(cacheKey)) {
-        return coverCache.get(cacheKey);
-      }
-      
-      // Then check localStorage
-      if (typeof window !== 'undefined' && game) {
-        const cachedData = localStorage.getItem(`cover_${cacheKey}`);
-        if (cachedData) {
-          const { url } = JSON.parse(cachedData);
-          // Update memory cache
-          coverCache.set(cacheKey, url);
-          return url;
-        }
-      }
-      
-      // For external URLs, use directly
-      if (game?.image && (game.image.startsWith('http://') || game.image.startsWith('https://'))) {
-        return game.image;
-      }
-      
-      // For local images
-      if (game?.image && !game.image.startsWith('wikimedia:') && 
-          !game.image.startsWith('tgdb:') && !game.image.startsWith('screenscraper:') &&
-          !game.image.includes('default-image')) {
-        return `/game/${game.image}`;
-      }
-      
-      // Default - will trigger fetch
-      return null;
-    } catch (err) {
-      return null;
+  // Immediate image determination for first render
+  const getInitialImage = () => {
+    if (!game) return null;
+    
+    // 1. Direct local image path (fastest)
+    if (game.image && !game.image.includes(':') && !game.image.includes('default-image')) {
+      return `/game/${game.image}`;
     }
-  });
-  
-  const [loading, setLoading] = useState(!coverUrl);
+    
+    // 2. External URL (also fast)
+    if (game.image && (game.image.startsWith('http://') || game.image.startsWith('https://'))) {
+      return game.image;
+    }
+    
+    // 3. Check memory cache
+    const cacheKey = game.image || `${source}:${game.title}:${game.core}`;
+    if (coverCache.has(cacheKey)) {
+      return coverCache.get(cacheKey);
+    }
+    
+    // 4. Check localStorage cache
+    const cachedUrl = getFromLocalCache(cacheKey);
+    if (cachedUrl) {
+      // Update in-memory cache for next time
+      coverCache.set(cacheKey, cachedUrl);
+      return cachedUrl;
+    }
+    
+    // No immediate image available
+    return null;
+  };
+
+  const [coverUrl, setCoverUrl] = useState(getInitialImage);
+  const [loading, setLoading] = useState(!getInitialImage());
   const [error, setError] = useState(null);
-  const [cacheDate, setCacheDate] = useState(null);
-  const [isFromCache, setIsFromCache] = useState(false);
-  const defaultImage = '/game/default-image.png';
+  const [isFromCache, setIsFromCache] = useState(!!getInitialImage() && !getInitialImage().startsWith('/game/'));
 
   useEffect(() => {
     // Skip fetch if we already have an image from initialization
     if (coverUrl) {
-      setIsFromCache(true);
       setLoading(false);
       return;
     }
     
-    const cacheKey = game?.image || `${source}:${game?.title}:${game?.core}`;
+    if (!game) {
+      setLoading(false);
+      return;
+    }
     
-    // Function to check localStorage cache - permanent storage
-    const checkLocalCache = (key) => {
-      try {
-        if (typeof window !== 'undefined') {
-          const cachedData = localStorage.getItem(`cover_${key}`);
-          if (cachedData) {
-            const { url, timestamp } = JSON.parse(cachedData);
-            setCacheDate(new Date(timestamp).toLocaleDateString());
-            setIsFromCache(true);
-            return url;
-          }
-        }
-        return null;
-      } catch (err) {
-        return null;
-      }
-    };
-
+    setLoading(true);
+    
+    const cacheKey = game.image || `${source}:${game.title}:${game.core}`;
+    
     // Function to save to localStorage cache
     const saveToLocalCache = (key, url) => {
       try {
@@ -101,85 +100,46 @@ export default function EnhancedGameCover({
       }
     };
 
-    // Skip if no game data
-    if (!game || !game.title) {
-      setLoading(false);
-      return;
-    }
-    
-    setLoading(true);
-
     const attemptImageFetch = async () => {
-      // First try existing image reference formats
+      // Try to use a special image reference
       if (game.image) {
-        // Check if this is a full URL (external image)
-        if (game.image.startsWith('http://') || game.image.startsWith('https://')) {
-          setCoverUrl(game.image);
-          setLoading(false);
+        if (game.image.startsWith('tgdb:')) {
+          fetchTGDBImage(game.image);
+          return;
+        } 
+        
+        if (game.image.startsWith('screenscraper:')) {
+          fetchScreenscraperImage(game.image);
           return;
         }
-
-        if (game.image.startsWith('tgdb:')) {
-          const cachedUrl = checkLocalCache(game.image);
-          if (cachedUrl) {
-            setCoverUrl(cachedUrl);
-          } else {
-            fetchTGDBImage(game.image);
-          }
-          return;
-        } else if (game.image.startsWith('screenscraper:')) {
-          const cachedUrl = checkLocalCache(game.image);
-          if (cachedUrl) {
-            setCoverUrl(cachedUrl);
-          } else {
-            fetchScreenscraperImage(game.image);
-          }
-          return;
-        } else if (game.image.startsWith('wikimedia:')) {
-          const cachedUrl = checkLocalCache(game.image);
-          if (cachedUrl) {
-            setCoverUrl(cachedUrl);
-          } else {
+        
+        if (game.image.startsWith('wikimedia:')) {
+          try {
             // Extract title from reference
             const parts = game.image.split(':');
             if (parts.length >= 2) {
               const title = decodeURIComponent(parts[1]);
               // Use game-images API to fetch from Wikimedia
-              try {
-                const response = await fetch(`/api/game-images?name=${encodeURIComponent(title)}${game.core ? `&console=${encodeURIComponent(game.core)}` : ''}`);
-                const data = await response.json();
-                if (data.success && data.imageUrl) {
-                  setCoverUrl(data.imageUrl);
-                  saveToLocalCache(game.image, data.imageUrl);
-                }
-              } catch (err) {
-                setError('Wikimedia image not available');
-              } finally {
-                setLoading(false);
+              const response = await fetch(`/api/game-images?name=${encodeURIComponent(title)}${game.core ? `&console=${encodeURIComponent(game.core)}` : ''}`);
+              const data = await response.json();
+              
+              if (data.success && data.imageUrl) {
+                setCoverUrl(data.imageUrl);
+                saveToLocalCache(game.image, data.imageUrl);
               }
             }
+          } catch (err) {
+            setError('Wikimedia image not available');
+          } finally {
+            setLoading(false);
           }
-          return;
-        } else if (!game.image.includes('default-image')) {
-          // Regular local image
-          setCoverUrl(`/game/${game.image}`);
-          setLoading(false);
           return;
         }
       }
       
-      // If no valid image, try to fetch automatically using title and core
+      // If no special reference but have title and core, try to fetch based on source
       if (game.title && game.core) {
-        // Generate a cache key
-        const cacheKey = `${source}:${game.title}:${game.core}`;
-        
-        const cachedUrl = checkLocalCache(cacheKey);
-        if (cachedUrl) {
-          setCoverUrl(cachedUrl);
-          setLoading(false);
-        } else {
-          fetchGameCover(source);
-        }
+        fetchGameCover(source);
         return;
       }
       
@@ -189,16 +149,13 @@ export default function EnhancedGameCover({
 
     // Start the fetch process
     attemptImageFetch();
-    
-  }, [game, source, coverUrl]);
+  }, [game, source]);
 
-  // Extract image from HTML - Same implementation as in GameImage and Wiki Image Extraction Test
+  // Extract image from HTML - Same implementation as before
   const extractImageFromHtml = (html) => {
     if (!html) return null;
     
-    console.log(`[EnhancedGameCover] Extracting image from HTML (${html.length} chars)`);
-    
-    // Try to find the infobox - Same patterns as in Wiki Image Extraction Test
+    // Try to find the infobox
     const infoboxPatterns = [
       /<table class="[^"]*infobox[^"]*vg[^"]*"[^>]*>([\s\S]*?)<\/table>/i,
       /<table class="[^"]*infobox[^"]*"[^>]*>([\s\S]*?)<\/table>/i,
@@ -212,17 +169,13 @@ export default function EnhancedGameCover({
       const infoboxMatch = html.match(pattern);
       if (infoboxMatch && infoboxMatch[0]) {
         infoboxHtml = infoboxMatch[0];
-        console.log(`[EnhancedGameCover] Found infobox HTML (${infoboxHtml.length} chars)`);
         break;
       }
     }
     
-    if (!infoboxHtml) {
-      console.log(`[EnhancedGameCover] No infobox found in the page`);
-      return null;
-    }
+    if (!infoboxHtml) return null;
     
-    // Try to find the image in the second row - Same as in Wiki Image Extraction Test
+    // Try to find the image in the second row
     const rows = infoboxHtml.match(/<tr[^>]*>[\s\S]*?<\/tr>/gi);
     if (rows && rows.length >= 2) {
       const imageMatch = rows[1].match(/<img[^>]*src="([^"]*)"[^>]*>/i);
@@ -231,23 +184,20 @@ export default function EnhancedGameCover({
         if (imageUrl.startsWith('//')) {
           imageUrl = `https:${imageUrl}`;
         }
-        console.log(`[EnhancedGameCover] Found image in second row: ${imageUrl}`);
         return imageUrl;
       }
     }
     
-    // If no image in second row, try to find any image in the infobox - Same as in Wiki Image Extraction Test
+    // If no image in second row, try to find any image in the infobox
     const imageMatch = infoboxHtml.match(/<img[^>]*src="([^"]*)"[^>]*>/i);
     if (imageMatch && imageMatch[1]) {
       let imageUrl = imageMatch[1];
       if (imageUrl.startsWith('//')) {
         imageUrl = `https:${imageUrl}`;
       }
-      console.log(`[EnhancedGameCover] Found image in infobox: ${imageUrl}`);
       return imageUrl;
     }
     
-    console.log(`[EnhancedGameCover] No image found in infobox`);
     return null;
   };
 
@@ -333,7 +283,6 @@ export default function EnhancedGameCover({
                 timestamp: Date.now()
               };
               localStorage.setItem(`cover_${cacheKey}`, JSON.stringify(cacheData));
-              setCacheDate(new Date().toLocaleDateString());
             }
           } catch (err) {
             console.error("[EnhancedGameCover] Error saving to localStorage:", err);
@@ -372,7 +321,6 @@ export default function EnhancedGameCover({
                     timestamp: Date.now()
                   };
                   localStorage.setItem(`cover_${cacheKey}`, JSON.stringify(cacheData));
-                  setCacheDate(new Date().toLocaleDateString());
                 }
               } catch (err) {
                 console.error("[EnhancedGameCover] Error saving to localStorage:", err);
@@ -449,7 +397,7 @@ export default function EnhancedGameCover({
           className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
           onError={() => setCoverUrl('/game/default-image.png')}
           loading="eager"
-          priority="true"
+          fetchpriority="high"
         />
       ) : (
         <Image
@@ -462,6 +410,7 @@ export default function EnhancedGameCover({
           onError={() => setCoverUrl(defaultImage)}
           loading="eager"
           priority={true}
+          fetchpriority="high"
         />
       )}
       
