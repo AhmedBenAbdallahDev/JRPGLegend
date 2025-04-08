@@ -15,6 +15,7 @@ export async function GET() {
         user: !!process.env.SCREENSCRAPER_USER,
         hasPassword: !!process.env.SCREENSCRAPER_PASSWORD,
         devId: !!process.env.SCREENSCRAPER_DEV_ID,
+        hasDevPassword: !!process.env.SCREENSCRAPER_DEV_PASSWORD
       },
       gameFound: status.gameFound
     });

@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { FiSearch, FiDatabase, FiTrash2, FiRefreshCw, FiImage } from 'react-icons/fi';
 
 export default function TheGamesDBTestPage() {
   const [loading, setLoading] = useState(false);
@@ -11,6 +12,7 @@ export default function TheGamesDBTestPage() {
   const [apiStatus, setApiStatus] = useState(null);
   const [cacheStats, setCacheStats] = useState({ count: 0, size: 0 });
   const [searchHistory, setSearchHistory] = useState([]);
+  const [error, setError] = useState(null);
 
   // Load cache stats and history on mount
   useEffect(() => {
@@ -141,6 +143,7 @@ export default function TheGamesDBTestPage() {
     
     setLoading(true);
     setSearchResults([]);
+    setError(null);
     
     try {
       // Search for game cover with a timeout
@@ -188,27 +191,18 @@ export default function TheGamesDBTestPage() {
           // Update stats after adding new cache
           updateCacheStats();
         } else {
-          alert('No cover found for this game');
+          setError('No cover found for this game');
         }
       } catch (fetchError) {
         if (fetchError.name === 'AbortError') {
-          throw new Error('Request timed out. The server took too long to respond.');
+          setError('Request timed out. The server took too long to respond.');
         } else {
           throw fetchError;
         }
       }
     } catch (error) {
-      console.error('Error searching for game cover:', error);
-      
-      // Provide a more user-friendly error message
-      let errorMessage = error.message;
-      if (errorMessage.includes('504') || errorMessage.includes('timeout')) {
-        errorMessage = 'The request to TheGamesDB timed out. The service might be busy or temporarily unavailable. Please try again later.';
-      } else if (errorMessage.includes('Unexpected token')) {
-        errorMessage = 'Received an invalid response from the server. TheGamesDB service might be experiencing issues.';
-      }
-      
-      alert('Error: ' + errorMessage);
+      console.error('Search error:', error);
+      setError(error.message || 'An error occurred while searching');
     } finally {
       setLoading(false);
     }
@@ -217,212 +211,257 @@ export default function TheGamesDBTestPage() {
   const removeCacheItem = (key) => {
     try {
       localStorage.removeItem(key);
+      setSearchHistory(prevHistory => prevHistory.filter(item => item.key !== key));
       updateCacheStats();
     } catch (err) {
       console.error("Error removing cache item:", err);
     }
   };
 
+  // Platform options for the dropdown
+  const platformOptions = [
+    { id: 'nes', name: 'Nintendo Entertainment System' },
+    { id: 'snes', name: 'Super Nintendo' },
+    { id: 'n64', name: 'Nintendo 64' },
+    { id: 'gb', name: 'Game Boy' },
+    { id: 'gbc', name: 'Game Boy Color' },
+    { id: 'gba', name: 'Game Boy Advance' },
+    { id: 'nds', name: 'Nintendo DS' },
+    { id: 'genesis', name: 'Sega Genesis / Mega Drive' },
+    { id: 'segacd', name: 'Sega CD' },
+    { id: 'saturn', name: 'Sega Saturn' },
+    { id: 'psx', name: 'PlayStation' },
+    { id: 'psp', name: 'PlayStation Portable' }
+  ];
+
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <h1 className="text-2xl font-bold mb-6">Game Cover API Test (TheGamesDB)</h1>
+    <div className="container mx-auto px-4 py-8 max-w-5xl text-gray-200">
+      <h1 className="text-3xl font-bold mb-6 text-white">TheGamesDB API Test</h1>
       
       {/* API Status */}
-      <div className="bg-main p-4 rounded-lg mb-8">
-        <h2 className="text-xl font-bold mb-4">TheGamesDB API Status</h2>
+      <div className="bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700 mb-8">
+        <h2 className="text-2xl font-bold mb-4 flex items-center text-white">
+          <FiDatabase className="mr-2 text-accent" /> API Status
+        </h2>
         
-        <div className="flex flex-wrap items-center justify-between mb-4">
-          <div>
-            {apiStatus ? (
-              <div>
-                <p className={`text-lg font-bold ${apiStatus.available ? 'text-green-500' : 'text-red-500'}`}>
-                  Status: {apiStatus.available ? 'Available' : 'Unavailable'}
-                </p>
-                <p className="text-sm mt-2">{apiStatus.message}</p>
-                {apiStatus.platformsCount && (
-                  <p className="text-sm mt-1">Platforms available: {apiStatus.platformsCount}</p>
-                )}
-                <p className="text-sm mt-1">API Key: {apiStatus.apiKey}</p>
-              </div>
-            ) : (
-              <p>Checking API status...</p>
+        {apiStatus ? (
+          <div className={`p-4 rounded-lg ${apiStatus.available ? 'bg-green-900/30 border border-green-700' : 'bg-red-900/30 border border-red-700'}`}>
+            <p className={`text-lg ${apiStatus.available ? 'text-green-400' : 'text-red-400'}`}>
+              Status: {apiStatus.available ? 'Available' : 'Unavailable'}
+            </p>
+            {apiStatus.message && (
+              <p className="mt-1">{apiStatus.message}</p>
+            )}
+            {apiStatus.apiKey && (
+              <p className="mt-1">API Key: {apiStatus.apiKey}</p>
+            )}
+            {apiStatus.platformsCount && (
+              <p className="mt-1">Platforms Available: {apiStatus.platformsCount}</p>
             )}
           </div>
-          
-          <button
+        ) : (
+          <div className="animate-pulse flex space-x-4">
+            <div className="h-6 bg-gray-700 rounded w-full"></div>
+          </div>
+        )}
+        
+        <div className="flex justify-end mt-4">
+          <button 
             onClick={checkApiStatus}
             disabled={loading}
-            className="bg-accent text-black py-2 px-4 rounded hover:bg-accent/80 disabled:opacity-50"
+            className="flex items-center bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50"
           >
+            <FiRefreshCw className={`mr-2 ${loading ? 'animate-spin' : ''}`} /> 
             Refresh Status
           </button>
         </div>
       </div>
       
-      {/* Cache Stats */}
-      <div className="bg-main p-4 rounded-lg mb-8">
-        <div className="flex flex-wrap justify-between items-center mb-4">
-          <div>
-            <h2 className="text-xl font-bold mb-2">TheGamesDB Cache Statistics</h2>
-            <p>Total Covers Cached: <span className="text-accent font-bold">{cacheStats.count}</span></p>
-            <p>Estimated Size: <span className="text-accent font-bold">{cacheStats.size} MB</span></p>
-          </div>
-          
-          <button
-            onClick={purgeAllCache}
-            className="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded"
-          >
-            Purge TheGamesDB Cache
-          </button>
-        </div>
+      {/* Game Cover Search Form */}
+      <div className="bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700 mb-8">
+        <h2 className="text-2xl font-bold mb-4 flex items-center text-white">
+          <FiSearch className="mr-2 text-accent" /> Game Cover Search
+        </h2>
         
-        <p className="text-sm text-gray-400 mt-2">
-          Images are cached permanently in your browser's localStorage.
-          This page only shows caches from TheGamesDB (including auto mode that resolved to TheGamesDB).
-        </p>
-      </div>
-      
-      {/* Search Form */}
-      <div className="bg-main p-4 rounded-lg mb-8">
-        <h2 className="text-xl font-bold mb-4">Search Game Cover from TheGamesDB</h2>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block mb-2">Game Title</label>
+            <label className="block mb-2 font-medium">Game Title</label>
             <input
               type="text"
               value={gameTitle}
               onChange={(e) => setGameTitle(e.target.value)}
-              className="w-full p-2 bg-primary border border-accent-secondary rounded"
-              placeholder="Enter game title (e.g. Super Mario Bros)"
+              placeholder="Enter game title"
+              className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-accent"
             />
           </div>
           
           <div>
-            <label className="block mb-2">Platform</label>
+            <label className="block mb-2 font-medium">Platform</label>
             <select
               value={platform}
               onChange={(e) => setPlatform(e.target.value)}
-              className="w-full p-2 bg-primary border border-accent-secondary rounded"
+              className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-accent"
             >
-              <option value="nes">NES</option>
-              <option value="snes">SNES</option>
-              <option value="n64">Nintendo 64</option>
-              <option value="gb">Game Boy</option>
-              <option value="gbc">Game Boy Color</option>
-              <option value="gba">Game Boy Advance</option>
-              <option value="psx">PlayStation</option>
-              <option value="segaMD">Sega Genesis/MegaDrive</option>
+              {platformOptions.map(option => (
+                <option key={option.id} value={option.id}>
+                  {option.name}
+                </option>
+              ))}
             </select>
           </div>
-        </div>
-        
-        <div className="mb-4">
-          <label className="block mb-2">API Source</label>
-          <div className="flex gap-4">
-            <label className="flex items-center">
-              <input
-                type="radio"
-                value="tgdb"
-                checked={apiSource === 'tgdb'}
-                onChange={() => setApiSource('tgdb')}
-                className="mr-2"
-              />
-              TheGamesDB
-            </label>
-            <label className="flex items-center">
-              <input
-                type="radio"
-                value="screenscraper"
-                checked={apiSource === 'screenscraper'}
-                onChange={() => setApiSource('screenscraper')}
-                className="mr-2"
-              />
-              ScreenScraper
-            </label>
-            <label className="flex items-center">
-              <input
-                type="radio"
-                value="auto"
-                checked={apiSource === 'auto'}
-                onChange={() => setApiSource('auto')}
-                className="mr-2"
-              />
-              Auto (Try Both)
-            </label>
+          
+          <div>
+            <label className="block mb-2 font-medium">API Source</label>
+            <select
+              value={apiSource}
+              onChange={(e) => setApiSource(e.target.value)}
+              className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-accent"
+            >
+              <option value="tgdb">TheGamesDB</option>
+              <option value="screenscraper">ScreenScraper</option>
+              <option value="auto">Auto (Try Both)</option>
+            </select>
+          </div>
+          
+          <div className="flex items-end">
+            <button
+              onClick={searchGame}
+              disabled={loading}
+              className="w-full flex justify-center items-center bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50"
+            >
+              {loading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Searching...
+                </>
+              ) : (
+                <>
+                  <FiSearch className="mr-2" /> Search
+                </>
+              )}
+            </button>
           </div>
         </div>
         
-        <button
-          onClick={searchGame}
-          disabled={loading}
-          className="bg-accent text-black py-2 px-4 rounded hover:bg-accent/80 disabled:opacity-50"
-        >
-          {loading ? 'Searching...' : 'Search Cover from TheGamesDB'}
-        </button>
+        {error && (
+          <div className="mt-4 p-4 bg-red-900/30 border border-red-700 rounded-lg">
+            <p className="text-red-400">{error}</p>
+          </div>
+        )}
       </div>
       
       {/* Search Results */}
       {searchResults.length > 0 && (
-        <div className="bg-main p-4 rounded-lg mb-8">
-          <h2 className="text-xl font-bold mb-4">Search Results</h2>
+        <div className="bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700 mb-8">
+          <h2 className="text-2xl font-bold mb-4 flex items-center text-white">
+            <FiImage className="mr-2 text-accent" /> Search Results
+          </h2>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {searchResults.map((result, index) => (
-              <div key={index} className="bg-primary p-2 rounded border border-accent-secondary">
-                <h3 className="font-medium text-center mb-2">{result.title}</h3>
-                <div className="aspect-[3/4] bg-black mb-2 rounded overflow-hidden">
-                  <Image
-                    src={result.coverUrl}
-                    width={300}
-                    height={400}
+              <div key={index} className="border border-gray-700 rounded-lg p-4 bg-gray-900 shadow-sm">
+                <h3 className="text-lg font-semibold mb-2 text-white">{result.title}</h3>
+                <p className="text-sm mb-2">Platform: {result.platform}</p>
+                <p className="text-sm mb-2">Source: {result.source}</p>
+                
+                <div className="relative h-64 mb-2 border border-gray-700 bg-gray-950">
+                  <Image 
+                    src={result.coverUrl} 
                     alt={result.title}
-                    className="object-contain w-full h-full"
+                    fill
+                    className="object-contain"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
                   />
+                  <div className="hidden items-center justify-center h-full text-red-500">
+                    Image failed to load
+                  </div>
                 </div>
-                <p className="text-xs text-center text-accent">
-                  Platform: {result.platform}
-                </p>
-                <p className="text-xs text-center text-green-500">
-                  Cached Successfully! (Source: {result.source || 'Unknown'})
-                </p>
+                
+                <a 
+                  href={result.coverUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-400 hover:underline text-sm block truncate"
+                >
+                  View Full Image
+                </a>
               </div>
             ))}
           </div>
         </div>
       )}
       
-      {/* Cache History */}
-      {searchHistory.length > 0 && (
-        <div className="bg-main p-4 rounded-lg">
-          <h2 className="text-xl font-bold mb-4">Recently Cached TheGamesDB Covers</h2>
+      {/* Cache Stats */}
+      <div className="bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700 mb-8">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold flex items-center text-white">
+            <FiDatabase className="mr-2 text-accent" /> Cache Statistics
+          </h2>
           
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {searchHistory.map((item, index) => (
-              <div key={index} className="bg-primary p-2 rounded border border-accent-secondary relative">
-                <button
-                  onClick={() => removeCacheItem(item.key)}
-                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
-                  title="Remove from cache"
-                >
-                  ×
-                </button>
-                <div className="aspect-[3/4] bg-black mb-2 rounded overflow-hidden">
-                  <Image
-                    src={item.url}
-                    width={150}
-                    height={200}
-                    alt={item.gameName}
-                    className="object-contain w-full h-full"
-                  />
-                </div>
-                <p className="text-xs font-medium truncate">{item.gameName}</p>
-                <p className="text-xs text-gray-400">Cached: {item.date}</p>
-              </div>
-            ))}
-          </div>
+          <button
+            onClick={purgeAllCache}
+            className="flex items-center bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700"
+          >
+            <FiTrash2 className="mr-2" /> Clear Cache
+          </button>
         </div>
-      )}
+        
+        <div className="p-4 bg-gray-900 rounded-lg mb-4">
+          <p>TGDB Cached Items: <span className="font-bold">{cacheStats.count}</span></p>
+          <p>Estimated Cache Size: <span className="font-bold">{cacheStats.size} MB</span></p>
+        </div>
+        
+        {searchHistory.length > 0 && (
+          <>
+            <h3 className="text-xl font-bold mb-2 text-white">Recent TheGamesDB Cached Items</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {searchHistory.map((item, index) => (
+                <div key={index} className="border border-gray-700 rounded-lg p-3 bg-gray-900">
+                  <div className="flex justify-between mb-2">
+                    <h4 className="font-semibold text-sm truncate flex-1">{item.gameName}</h4>
+                    <button 
+                      onClick={() => removeCacheItem(item.key)}
+                      className="text-red-400 hover:text-red-300"
+                    >
+                      <FiTrash2 />
+                    </button>
+                  </div>
+                  <p className="text-xs mb-2">Source: {item.source}, Added: {item.date}</p>
+                  <div className="relative h-32 mb-2 border border-gray-700 bg-gray-950">
+                    <Image 
+                      src={item.url} 
+                      alt={item.gameName}
+                      fill
+                      className="object-contain"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
+                    />
+                    <div className="hidden items-center justify-center h-full text-red-500">
+                      Image failed to load
+                    </div>
+                  </div>
+                  <a 
+                    href={item.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:underline text-xs block truncate"
+                  >
+                    View Full Image
+                  </a>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 } 

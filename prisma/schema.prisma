@@ -18,6 +18,7 @@ model Game {
   image       String      // URL to game thumbnail
   gameLink    String      // URL to game ROM
   core        String      // Emulator core type
+  region      String?     // Region of the game (us, jp, eu, etc.)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   categories  Category[]

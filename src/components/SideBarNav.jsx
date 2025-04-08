@@ -31,11 +31,6 @@ export default function SideBarNav({ categoryMenu }) {
       slug: "/covers",
     },
     {
-      name: "TheGamesDB Test",
-      icon: FiDatabase,
-      slug: "/thegamesdb-test",
-    },
-    {
       name: "API Config",
       icon: FiSettings,
       slug: "/api-config",
@@ -117,19 +112,6 @@ export default function SideBarNav({ categoryMenu }) {
 
       <div className="text-accent text-xs mb-2">API TEST PAGES</div>
       <ul className="bg-muted flex flex-col gap-2 mb-6">
-        <li>
-          <a
-            href="/thegamesdb-test"
-            className={`text-sm tracking-wide flex gap-2 items-center p-1 px-2 ${
-              activeSegment === "/thegamesdb-test"
-                ? "active bg-primary rounded-md"
-                : "incative hover:bg-primary rounded-md"
-            }`}
-          >
-            <FiDatabase className="w-5 h-5 text-accent" />
-            TheGamesDB Test
-          </a>
-        </li>
         <li>
           <a
             href="/test-screenscraper"

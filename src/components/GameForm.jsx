@@ -16,6 +16,7 @@ export default function GameForm({ categories = [] }) {
     apiImageUrl: '',
     gameLink: '',
     core: '',
+    region: '', // Empty string instead of 'us' default
     category: { id: '', title: '' }
   });
 
@@ -525,6 +526,26 @@ export default function GameForm({ categories = [] }) {
             placeholder="Or type custom core"
           />
         </div>
+      </div>
+
+      <div>
+        <label className="block mb-2">Region</label>
+        <select
+          name="region"
+          value={formData.region}
+          onChange={handleChange}
+          className="w-full p-3 rounded bg-primary border border-accent-secondary"
+        >
+          <option value="">Not specified (default to US)</option>
+          <option value="us">USA (North America)</option>
+          <option value="jp">Japan</option>
+          <option value="eu">Europe</option>
+          <option value="world">World</option>
+          <option value="other">Other</option>
+        </select>
+        <p className="text-xs text-accent mt-1">
+          Select the region/version of this game. If not specified, it will default to US for searches.
+        </p>
       </div>
 
       <button

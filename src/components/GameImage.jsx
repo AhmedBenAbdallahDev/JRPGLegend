@@ -20,6 +20,7 @@ import Image from 'next/image';
  * @param {number} props.height - Height of the image container
  * @param {Function} props.onLoad - Callback when image loads successfully
  * @param {Function} props.onError - Callback when image fails to load
+ * @param {string} props.region - Game region (us, jp, eu) - affects search terms
  */
 export default function GameImage({ 
   title, 
@@ -30,12 +31,28 @@ export default function GameImage({
   width = 100, 
   height = 100,
   onLoad,
-  onError
+  onError,
+  region = null
 }) {
   const [src, setSrc] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [fromWikimedia, setFromWikimedia] = useState(false);
+  
+  // Function to get a region-specific search title
+  const getRegionSearchTitle = (baseTitle, gameRegion) => {
+    // Handle null/empty region as 'us'
+    const effectiveRegion = gameRegion && gameRegion.trim() ? gameRegion.trim().toLowerCase() : 'us';
+    
+    if (effectiveRegion === 'jp') {
+      return `${baseTitle} Japan video game`;
+    } else if (effectiveRegion === 'eu') {
+      return `${baseTitle} Europe video game`;
+    } else {
+      // Default to US search terms
+      return `${baseTitle} video game`;
+    }
+  };
   
   useEffect(() => {
     // Reset state when props change
@@ -44,7 +61,7 @@ export default function GameImage({
     setError(null);
     setFromWikimedia(false);
     
-    console.log(`[GameImage] Processing image for game: "${title}" (${core || 'unknown core'})`);
+    console.log(`[GameImage] Processing image for game: "${title}" (${core || 'unknown core'}) [Region: ${region || 'us'}]`);
     console.log(`[GameImage] imageLink from DB: ${imageLink || 'NOT FOUND (empty/null)'}`);
     
     // If imageLink is provided, use it directly
@@ -85,7 +102,7 @@ export default function GameImage({
       setLoading(false);
       setError('No title provided for image search');
     }
-  }, [title, core, imageLink]);
+  }, [title, core, imageLink, region]);
   
   // This function mirrors the exact approach from the Wiki Image Extraction Test page
   const fetchWikimediaImage = async (searchTitle) => {
@@ -95,7 +112,8 @@ export default function GameImage({
       
       // Step 1: First, search for the page to get the exact title - EXACTLY as in Wiki Image Extraction Test
       console.log(`[GameImage] Step 1 - Searching for: ${searchTitle}`);
-      const searchQuery = `${searchTitle} video game`;
+      const searchQuery = getRegionSearchTitle(searchTitle, region);
+      console.log(`[GameImage] Using region-specific search query: "${searchQuery}"`);
       
       const searchResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchQuery)}&format=json&origin=*`);
       

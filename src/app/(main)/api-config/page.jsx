@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { FiRefreshCw, FiDatabase, FiSettings, FiSearch, FiImage, FiBookOpen } from 'react-icons/fi';
 
 export default function ApiConfigPage() {
   const router = useRouter();
@@ -176,38 +177,47 @@ export default function ApiConfigPage() {
     router.push('/test-screenscraper');
   };
   
+  const goToTheGamesDbTestPage = () => {
+    router.push('/thegamesdb-test');
+  };
+  
   const formatJson = (obj) => {
     return JSON.stringify(obj, null, 2);
   };
   
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <h1 className="text-2xl font-bold mb-6">API Configuration & Status</h1>
+    <div className="container mx-auto px-4 py-8 max-w-4xl text-gray-200">
+      <h1 className="text-3xl font-bold mb-6 text-white flex items-center">
+        <FiSettings className="mr-3 text-accent" /> API Configuration & Status
+      </h1>
       
       <div className="flex justify-end mb-4">
         <button
           onClick={checkAllApis}
           disabled={loading}
-          className="bg-accent text-black py-2 px-4 rounded hover:bg-accent/80 disabled:opacity-50"
+          className="flex items-center bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50"
         >
+          <FiRefreshCw className={`mr-2 ${loading ? 'animate-spin' : ''}`} />
           {loading ? 'Checking...' : 'Refresh All'}
         </button>
       </div>
       
       {/* ScreenScraper Section */}
-      <div className="bg-main p-4 rounded-lg mb-8">
-        <h2 className="text-xl font-bold mb-4">ScreenScraper API</h2>
+      <div className="bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700 mb-8">
+        <h2 className="text-2xl font-bold mb-4 text-white flex items-center">
+          <FiImage className="mr-2 text-accent" /> ScreenScraper API
+        </h2>
         
         {screenscraper.error ? (
-          <div className="bg-red-500 bg-opacity-20 border border-red-600 p-3 rounded mb-4">
-            <p className="text-red-500">{screenscraper.error}</p>
+          <div className="bg-red-900/30 border border-red-700 p-4 rounded-lg mb-4">
+            <p className="text-red-400">{screenscraper.error}</p>
           </div>
         ) : screenscraper.status ? (
-          <div className={`mb-4 p-3 rounded ${screenscraper.status.available ? 'bg-green-500 bg-opacity-20 border border-green-600' : 'bg-red-500 bg-opacity-20 border border-red-600'}`}>
-            <p className={screenscraper.status.available ? 'text-green-500' : 'text-red-500'}>
+          <div className={`mb-4 p-4 rounded-lg ${screenscraper.status.available ? 'bg-green-900/30 border border-green-700' : 'bg-red-900/30 border border-red-700'}`}>
+            <p className={`text-lg ${screenscraper.status.available ? 'text-green-400' : 'text-red-400'}`}>
               Status: {screenscraper.status.available ? 'Available' : 'Unavailable'}
             </p>
-            <p className="mt-1 text-sm">{screenscraper.status.message}</p>
+            <p className="mt-1">{screenscraper.status.message}</p>
             
             <div className="mt-2 text-sm">
               <p>User: {screenscraper.status.credentials?.user ? 'Configured' : 'Missing'}</p>
@@ -217,37 +227,39 @@ export default function ApiConfigPage() {
             </div>
           </div>
         ) : (
-          <p>Checking status...</p>
+          <div className="animate-pulse flex space-x-4 mb-4">
+            <div className="h-6 bg-gray-700 rounded w-full"></div>
+          </div>
         )}
         
-        <div className="flex justify-end mb-4">
+        <div className="flex justify-end mb-4 gap-2">
           <button
             onClick={testScreenscraperSearch}
             disabled={loading || !screenscraper.status?.available}
-            className="bg-accent text-black py-2 px-4 rounded hover:bg-accent/80 disabled:opacity-50 mr-2"
+            className="flex items-center bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50"
           >
-            Test Search
+            <FiSearch className="mr-2" /> Test Search
           </button>
           <button
             onClick={goToScreenScraperTestPage}
-            className="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
+            className="flex items-center bg-indigo-600 text-white py-2 px-4 rounded hover:bg-indigo-700"
           >
-            Open Test Page
+            <FiImage className="mr-2" /> Open Test Page
           </button>
         </div>
         
         {screenscraper.testResult && (
           <div className="mt-4">
-            <h3 className="font-bold mb-2">Test Results</h3>
-            <div className={`p-3 rounded ${screenscraper.testResult.success ? 'bg-green-500 bg-opacity-20' : 'bg-red-500 bg-opacity-20'}`}>
+            <h3 className="font-bold mb-2 text-white">Test Results</h3>
+            <div className={`p-4 rounded-lg ${screenscraper.testResult.success ? 'bg-green-900/30' : 'bg-red-900/30'}`}>
               <p className="mb-2">{screenscraper.testResult.success ? 'Search successful!' : 'Search failed!'}</p>
               
               {screenscraper.testResult.error && (
-                <p className="text-red-500 mb-2">{screenscraper.testResult.error}</p>
+                <p className="text-red-400 mb-2">{screenscraper.testResult.error}</p>
               )}
               
               {screenscraper.testResult.data && (
-                <pre className="bg-black bg-opacity-50 p-2 rounded text-xs overflow-auto max-h-64">
+                <pre className="bg-gray-900 p-4 rounded-lg text-xs overflow-auto max-h-64 border border-gray-700">
                   {formatJson(screenscraper.testResult.data)}
                 </pre>
               )}
@@ -257,19 +269,21 @@ export default function ApiConfigPage() {
       </div>
       
       {/* TheGamesDB Section */}
-      <div className="bg-main p-4 rounded-lg mb-8">
-        <h2 className="text-xl font-bold mb-4">TheGamesDB API</h2>
+      <div className="bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700 mb-8">
+        <h2 className="text-2xl font-bold mb-4 text-white flex items-center">
+          <FiDatabase className="mr-2 text-accent" /> TheGamesDB API
+        </h2>
         
         {thegamesdb.error ? (
-          <div className="bg-red-500 bg-opacity-20 border border-red-600 p-3 rounded mb-4">
-            <p className="text-red-500">{thegamesdb.error}</p>
+          <div className="bg-red-900/30 border border-red-700 p-4 rounded-lg mb-4">
+            <p className="text-red-400">{thegamesdb.error}</p>
           </div>
         ) : thegamesdb.status ? (
-          <div className={`mb-4 p-3 rounded ${thegamesdb.status.available ? 'bg-green-500 bg-opacity-20 border border-green-600' : 'bg-red-500 bg-opacity-20 border border-red-600'}`}>
-            <p className={thegamesdb.status.available ? 'text-green-500' : 'text-red-500'}>
+          <div className={`mb-4 p-4 rounded-lg ${thegamesdb.status.available ? 'bg-green-900/30 border border-green-700' : 'bg-red-900/30 border border-red-700'}`}>
+            <p className={`text-lg ${thegamesdb.status.available ? 'text-green-400' : 'text-red-400'}`}>
               Status: {thegamesdb.status.available ? 'Available' : 'Unavailable'}
             </p>
-            <p className="mt-1 text-sm">{thegamesdb.status.message}</p>
+            <p className="mt-1">{thegamesdb.status.message}</p>
             
             <div className="mt-2 text-sm">
               <p>API Key: {thegamesdb.status.apiKey}</p>
@@ -279,31 +293,39 @@ export default function ApiConfigPage() {
             </div>
           </div>
         ) : (
-          <p>Checking status...</p>
+          <div className="animate-pulse flex space-x-4 mb-4">
+            <div className="h-6 bg-gray-700 rounded w-full"></div>
+          </div>
         )}
         
-        <div className="flex justify-end mb-4">
+        <div className="flex justify-end mb-4 gap-2">
           <button
             onClick={testTgdbSearch}
             disabled={loading || !thegamesdb.status?.available}
-            className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 disabled:opacity-50"
+            className="flex items-center bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50"
           >
-            Test Search
+            <FiSearch className="mr-2" /> Test Search
+          </button>
+          <button
+            onClick={goToTheGamesDbTestPage}
+            className="flex items-center bg-indigo-600 text-white py-2 px-4 rounded hover:bg-indigo-700"
+          >
+            <FiDatabase className="mr-2" /> Open Test Page
           </button>
         </div>
         
         {thegamesdb.testResult && (
           <div className="mt-4">
-            <h3 className="font-bold mb-2">Test Results</h3>
-            <div className={`p-3 rounded ${thegamesdb.testResult.success ? 'bg-green-500 bg-opacity-20' : 'bg-red-500 bg-opacity-20'}`}>
+            <h3 className="font-bold mb-2 text-white">Test Results</h3>
+            <div className={`p-4 rounded-lg ${thegamesdb.testResult.success ? 'bg-green-900/30' : 'bg-red-900/30'}`}>
               <p className="mb-2">{thegamesdb.testResult.success ? 'Search successful!' : 'Search failed!'}</p>
               
               {thegamesdb.testResult.error && (
-                <p className="text-red-500 mb-2">{thegamesdb.testResult.error}</p>
+                <p className="text-red-400 mb-2">{thegamesdb.testResult.error}</p>
               )}
               
               {thegamesdb.testResult.data && (
-                <pre className="bg-black bg-opacity-50 p-2 rounded text-xs overflow-auto max-h-64">
+                <pre className="bg-gray-900 p-4 rounded-lg text-xs overflow-auto max-h-64 border border-gray-700">
                   {formatJson(thegamesdb.testResult.data)}
                 </pre>
               )}
@@ -313,19 +335,21 @@ export default function ApiConfigPage() {
       </div>
       
       {/* Wikimedia Section */}
-      <div className="bg-main p-4 rounded-lg mb-8">
-        <h2 className="text-xl font-bold mb-4">Wikimedia API</h2>
+      <div className="bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700 mb-8">
+        <h2 className="text-2xl font-bold mb-4 text-white flex items-center">
+          <FiBookOpen className="mr-2 text-accent" /> Wikimedia API
+        </h2>
         
         {wikimedia.error ? (
-          <div className="bg-red-500 bg-opacity-20 border border-red-600 p-3 rounded mb-4">
-            <p className="text-red-500">{wikimedia.error}</p>
+          <div className="bg-red-900/30 border border-red-700 p-4 rounded-lg mb-4">
+            <p className="text-red-400">{wikimedia.error}</p>
           </div>
         ) : wikimedia.status ? (
-          <div className={`mb-4 p-3 rounded ${wikimedia.status.available ? 'bg-green-500 bg-opacity-20 border border-green-600' : 'bg-red-500 bg-opacity-20 border border-red-600'}`}>
-            <p className={wikimedia.status.available ? 'text-green-500' : 'text-red-500'}>
+          <div className={`mb-4 p-4 rounded-lg ${wikimedia.status.available ? 'bg-green-900/30 border border-green-700' : 'bg-red-900/30 border border-red-700'}`}>
+            <p className={`text-lg ${wikimedia.status.available ? 'text-green-400' : 'text-red-400'}`}>
               Status: {wikimedia.status.available ? 'Available' : 'Unavailable'}
             </p>
-            <p className="mt-1 text-sm">{wikimedia.status.message}</p>
+            <p className="mt-1">{wikimedia.status.message}</p>
             
             <div className="mt-2 text-sm">
               <p>Client ID: {wikimedia.status.credentials?.clientId ? 'Set' : 'Not Set'}</p>
@@ -333,46 +357,48 @@ export default function ApiConfigPage() {
             </div>
           </div>
         ) : (
-          <p>Checking status...</p>
+          <div className="animate-pulse flex space-x-4 mb-4">
+            <div className="h-6 bg-gray-700 rounded w-full"></div>
+          </div>
         )}
         
-        <div className="flex justify-end mb-4 gap-2">
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={goToWikimediaTestPage}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
-            >
-              Open Wiki Test Page
-            </button>
-            <button
-              onClick={goToWikimediaImagesTestPage}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
-            >
-              Open Wiki Images Test
-            </button>
-            <button
-              onClick={goToWikiImageExamplePage}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
-            >
-              Open Wiki Image Example
-            </button>
-            <button
-              onClick={goToWikiImageExtractionPage}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
-            >
-              Open Wiki Image Extraction
-            </button>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+          <button
+            onClick={goToWikimediaTestPage}
+            className="flex items-center bg-indigo-600 text-white py-2 px-4 rounded hover:bg-indigo-700"
+          >
+            <FiBookOpen className="mr-2" /> Open Wiki Test Page
+          </button>
+          <button
+            onClick={goToWikimediaImagesTestPage}
+            className="flex items-center bg-indigo-600 text-white py-2 px-4 rounded hover:bg-indigo-700"
+          >
+            <FiImage className="mr-2" /> Open Wiki Images Test
+          </button>
+          <button
+            onClick={goToWikiImageExamplePage}
+            className="flex items-center bg-indigo-600 text-white py-2 px-4 rounded hover:bg-indigo-700"
+          >
+            <FiImage className="mr-2" /> Open Wiki Image Example
+          </button>
+          <button
+            onClick={goToWikiImageExtractionPage}
+            className="flex items-center bg-indigo-600 text-white py-2 px-4 rounded hover:bg-indigo-700"
+          >
+            <FiImage className="mr-2" /> Open Wiki Image Extraction
+          </button>
         </div>
       </div>
       
-      <div className="bg-main p-4 rounded-lg">
-        <h2 className="text-xl font-bold mb-4">Troubleshooting</h2>
+      <div className="bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700">
+        <h2 className="text-2xl font-bold mb-4 text-white flex items-center">
+          <FiSettings className="mr-2 text-accent" /> Troubleshooting
+        </h2>
         
-        <div className="mb-4">
-          <h3 className="font-bold mb-2">ScreenScraper</h3>
-          <ul className="list-disc list-inside space-y-2">
-            <li>You need to <a href="https://www.screenscraper.fr/membreinscription.php" target="_blank" rel="noopener" className="text-accent underline">register an account on ScreenScraper</a> to use their API</li>
+        <div className="mb-6">
+          <h3 className="text-xl font-bold mb-3 text-white">ScreenScraper</h3>
+          <ul className="list-disc list-inside space-y-2 pl-4 text-gray-300">
+            <li>You need to <a href="https://www.screenscraper.fr/membreinscription.php" target="_blank" rel="noopener" className="text-blue-400 underline hover:text-blue-300">register an account on ScreenScraper</a> to use their API</li>
             <li>Make sure you've added your ScreenScraper username and password to your environment variables</li>
             <li>ScreenScraper may have rate limits or be temporarily down</li>
             <li>The API may require a Developer ID for higher rate limits</li>
@@ -380,8 +406,8 @@ export default function ApiConfigPage() {
         </div>
         
         <div>
-          <h3 className="font-bold mb-2">TheGamesDB</h3>
-          <ul className="list-disc list-inside space-y-2">
+          <h3 className="text-xl font-bold mb-3 text-white">TheGamesDB</h3>
+          <ul className="list-disc list-inside space-y-2 pl-4 text-gray-300">
             <li>Ensure your API key is valid and correctly set in the environment variables</li>
             <li>TheGamesDB may have different platform IDs than expected</li>
             <li>There are daily request limits for the API based on your key type</li>

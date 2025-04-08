@@ -145,9 +145,13 @@ export default function TestScreenScraperPage() {
     
     if (filteredImages.length === 0) return null;
     
+    // Get the proper title based on the selected image type
+    const selectedType = imageTypes.find(type => type.id === selectedImageType);
+    const displayTitle = selectedImageType === 'all' ? title : selectedType?.label || title;
+    
     return (
       <div className="mb-8">
-        <h3 className="text-xl font-bold mb-4 text-white">{title}</h3>
+        <h3 className="text-xl font-bold mb-4 text-white">{displayTitle}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredImages.map((img, index) => (
             <div key={index} className="border border-gray-700 rounded-lg p-4 bg-gray-800 shadow-sm">
@@ -513,8 +517,20 @@ export default function TestScreenScraperPage() {
           {/* Display all images from the API response */}
           {data.gameData.images && data.gameData.images.length > 0 && (
             <div className="bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700">
-              <h2 className="text-2xl font-bold mb-4 text-white">Images ({data.gameData.images.length} found)</h2>
-              {renderImageSection('All Images', data.gameData.images)}
+              {selectedImageType === 'all' ? (
+                <h2 className="text-2xl font-bold mb-4 text-white">Images ({data.gameData.images.length} found)</h2>
+              ) : (
+                <h2 className="text-2xl font-bold mb-4 text-white">
+                  {imageTypes.find(type => type.id === selectedImageType)?.label || 'Images'} (
+                    {data.gameData.images.filter(img => 
+                      (img.type || '').toLowerCase().includes(selectedImageType)
+                    ).length} found)
+                </h2>
+              )}
+              {renderImageSection(
+                selectedImageType === 'all' ? 'All Images' : imageTypes.find(type => type.id === selectedImageType)?.label, 
+                data.gameData.images
+              )}
             </div>
           )}
         </div>
