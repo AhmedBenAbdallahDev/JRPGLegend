@@ -2,6 +2,7 @@ import { ChevronRightIcon } from "@heroicons/react/24/outline";
 import GameCard from "./GameCard";
 import { SiNintendo, SiPlaystation, SiSega } from 'react-icons/si';
 import { FaGamepad, FaMobileAlt } from 'react-icons/fa';
+import Link from 'next/link';
 
 export default function GameCategoryWithCovers({category}) {
   if (!category || !category.games) {
@@ -17,15 +18,15 @@ export default function GameCategoryWithCovers({category}) {
     switch (slug) {
       case 'nes':
       case 'snes':
-        return <SiNintendo size={iconSize} />;
+        return <FaGamepad size={iconSize} />;
       case 'n64':
-        return <SiNintendo size={iconSize} />;
+        return <FaGamepad size={iconSize} />;
       case 'gb':
       case 'gbc':
       case 'gba':
         return <FaMobileAlt size={iconSize} />;
       case 'nds':
-        return <SiNintendo size={iconSize} />;
+        return <FaGamepad size={iconSize} />;
       case 'genesis':
       case 'segacd':
       case 'saturn':

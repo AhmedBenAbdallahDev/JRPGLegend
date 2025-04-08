@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { SiNintendo, SiPlaystation, SiSega } from 'react-icons/si';
+import { SiPlaystation, SiSega } from 'react-icons/si';
 import { FaGamepad, FaMobileAlt } from 'react-icons/fa';
 import { IoGameController } from 'react-icons/io5';
 
@@ -9,22 +9,22 @@ export const metadata = {
   description: 'Explore all the retro gaming platforms supported by our emulation system'
 };
 
-// Function to get the appropriate icon for each platform
-const getPlatformIcon = (slug) => {
-  const iconSize = 48;
+// Function to get the appropriate icon for each platform category
+const getCategoryIcon = (slug) => {
+  const iconSize = 24;
   
   switch (slug) {
     case 'nes':
     case 'snes':
-      return <SiNintendo size={iconSize} />;
+      return <FaGamepad size={iconSize} />;
     case 'n64':
-      return <SiNintendo size={iconSize} />;
+      return <FaGamepad size={iconSize} />;
     case 'gb':
     case 'gbc':
     case 'gba':
       return <FaMobileAlt size={iconSize} />;
     case 'nds':
-      return <SiNintendo size={iconSize} />;
+      return <FaGamepad size={iconSize} />;
     case 'genesis':
     case 'segacd':
     case 'saturn':
@@ -47,7 +47,7 @@ const PlatformCard = ({ name, core, abbreviation, year, color, slug }) => (
     </div>
     <div className="p-4">
       <div className="flex items-center justify-center mb-4 text-accent">
-        {getPlatformIcon(slug)}
+        {getCategoryIcon(slug)}
       </div>
       <p className="text-sm text-gray-600 mb-4">Core: <code className="bg-gray-100 px-1 py-0.5 rounded">{core}</code></p>
       <Link 

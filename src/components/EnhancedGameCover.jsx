@@ -228,7 +228,12 @@ export default function EnhancedGameCover({
         
         // Step 1: First, search for the page to get the exact title - Same as in Wiki Image Extraction Test
         console.log(`[EnhancedGameCover] Step 1 - Searching for: ${game.title}`);
-        const searchQuery = `${game.title} video game`;
+        const searchQuery = `${game.title} ${game.core} video game`;
+        console.log(`[EnhancedGameCover] ===== SEARCH QUERY =====`);
+        console.log(`[EnhancedGameCover] Game Title: ${game.title}`);
+        console.log(`[EnhancedGameCover] Console: ${game.core}`);
+        console.log(`[EnhancedGameCover] Final Search Query: "${searchQuery}"`);
+        console.log(`[EnhancedGameCover] ======================`);
         
         const searchResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchQuery)}&format=json&origin=*`);
         

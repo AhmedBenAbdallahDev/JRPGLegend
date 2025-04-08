@@ -12,7 +12,7 @@ import {
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { FiDatabase, FiImage, FiBookOpen, FiSettings } from "react-icons/fi";
-import { SiNintendo, SiPlaystation, SiSega } from 'react-icons/si';
+import { SiPlaystation, SiSega } from 'react-icons/si';
 import { FaGamepad, FaMobileAlt } from 'react-icons/fa';
 
 export default function MobileNav() {
@@ -93,15 +93,15 @@ export default function MobileNav() {
     switch (slug) {
       case 'nes':
       case 'snes':
-        return <SiNintendo size={iconSize} />;
+        return <FaGamepad size={iconSize} />;
       case 'n64':
-        return <SiNintendo size={iconSize} />;
+        return <FaGamepad size={iconSize} />;
       case 'gb':
       case 'gbc':
       case 'gba':
         return <FaMobileAlt size={iconSize} />;
       case 'nds':
-        return <SiNintendo size={iconSize} />;
+        return <FaGamepad size={iconSize} />;
       case 'genesis':
       case 'segacd':
       case 'saturn':
@@ -239,14 +239,14 @@ export default function MobileNav() {
               {groupedCategories.nintendo.length > 0 && (
                 <div className="mb-3">
                   <div 
-                    className="flex items-center gap-2 p-2 text-base font-medium cursor-pointer border-b border-accent/50"
+                    className="flex items-center gap-2 p-1 text-sm font-medium cursor-pointer"
                     onClick={() => setNintendoOpen(!nintendoOpen)}
                   >
-                    <SiNintendo className="text-accent" />
+                    <FaGamepad className="text-accent" />
                     <span>Nintendo</span>
                     {nintendoOpen ? 
-                      <ChevronDownIcon className="w-4 h-4 ml-auto" /> : 
-                      <ChevronRightIcon className="w-4 h-4 ml-auto" />
+                      <ChevronDownIcon className="w-3 h-3 ml-auto" /> : 
+                      <ChevronRightIcon className="w-3 h-3 ml-auto" />
                     }
                   </div>
                   

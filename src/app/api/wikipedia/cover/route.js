@@ -10,10 +10,11 @@ export async function GET(request) {
   // Get the search params from the URL
   const { searchParams } = new URL(request.url);
   const game = searchParams.get('game');
+  const console = searchParams.get('console');
   
-  if (!game) {
+  if (!game || !console) {
     return NextResponse.json(
-      { error: 'Missing game parameter' },
+      { error: 'Missing game or console parameter' },
       { status: 400 }
     );
   }
@@ -32,14 +33,14 @@ export async function GET(request) {
   
   try {
     // Log API request attempt
-    console.log(`[WIKIMEDIA] Searching for game cover: ${game}`);
+    console.log(`[WIKIMEDIA] Searching for game cover: ${game} ${console} video game`);
     
     // Make a request to the Wikimedia API with authentication
     const wikiApiUrl = 'https://api.wikimedia.org/core/v1/wikipedia/en/search/page';
     
     // Step 1: Search for the game with authenticated API
     const searchParams = new URLSearchParams({
-      q: `${game} video game`,
+      q: `${game} ${console} video game`,
       limit: '1'
     });
     
@@ -61,7 +62,7 @@ export async function GET(request) {
     const searchData = await searchResponse.json();
     
     if (!searchData.pages || searchData.pages.length === 0) {
-      console.warn(`[WIKIMEDIA] No page found for game: ${game}`);
+      console.warn(`[WIKIMEDIA] No page found for game: ${game} ${console} video game`);
       return NextResponse.json(
         { error: 'No Wikipedia page found for this game' },
         { status: 404 }
@@ -116,7 +117,7 @@ export async function GET(request) {
     }
     
     // Log successful API response
-    console.log(`[WIKIMEDIA] Successfully retrieved cover for: ${game}`);
+    console.log(`[WIKIMEDIA] Successfully retrieved cover for: ${game} ${console} video game`);
     
     // Return the cover URL and page info
     return NextResponse.json({

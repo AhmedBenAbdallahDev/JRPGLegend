@@ -1,6 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { FiSearch, FiTrash2, FiFilter, FiX } from 'react-icons/fi';
+import { SiNintendo, SiSega, SiPlaystation } from 'react-icons/si';
+import { FaGamepad, FaMobileAlt, FaDice } from 'react-icons/fa';
 
 export default function CoverManagerPage() {
   const [loading, setLoading] = useState(false);
@@ -9,12 +12,82 @@ export default function CoverManagerPage() {
   const [platform, setPlatform] = useState('nes');
   const [cacheStats, setCacheStats] = useState({ count: 0, size: 0 });
   const [searchHistory, setSearchHistory] = useState([]);
+  const [selectedConsole, setSelectedConsole] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [cachedCovers, setCachedCovers] = useState([]);
+  const [selectedCovers, setSelectedCovers] = useState(new Set());
+
+  // Available consoles for filtering
+  const consoles = [
+    { id: 'all', name: 'All Consoles' },
+    // Nintendo
+    { id: 'nes', name: 'Nintendo Entertainment System' },
+    { id: 'snes', name: 'Super Nintendo' },
+    { id: 'n64', name: 'Nintendo 64' },
+    { id: 'gb', name: 'Game Boy' },
+    { id: 'gbc', name: 'Game Boy Color' },
+    { id: 'gba', name: 'Game Boy Advance' },
+    { id: 'nds', name: 'Nintendo DS' },
+    // Sega
+    { id: 'genesis', name: 'Sega Genesis' },
+    { id: 'segacd', name: 'Sega CD' },
+    { id: 'saturn', name: 'Sega Saturn' },
+    // Sony
+    { id: 'psx', name: 'PlayStation' },
+    { id: 'psp', name: 'PlayStation Portable' },
+    // Other
+    { id: 'arcade', name: 'Arcade' }
+  ];
+
+  // Group consoles by publisher
+  const groupedConsoles = {
+    nintendo: consoles.filter(c => ['nes', 'snes', 'n64', 'gb', 'gbc', 'gba', 'nds'].includes(c.id)),
+    sega: consoles.filter(c => ['genesis', 'segacd', 'saturn'].includes(c.id)),
+    sony: consoles.filter(c => ['psx', 'psp'].includes(c.id)),
+    other: consoles.filter(c => ['arcade'].includes(c.id))
+  };
 
   // Load cache stats and history on mount
   useEffect(() => {
     updateCacheStats();
     loadSearchHistory();
+    loadCachedCovers();
   }, []);
+
+  const loadCachedCovers = () => {
+    try {
+      if (typeof window !== 'undefined') {
+        const covers = [];
+        
+        // Iterate through localStorage
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key.startsWith('cover_')) {
+            try {
+              const item = JSON.parse(localStorage.getItem(key));
+              const [source, gameName, console] = key.replace('cover_', '').split(':');
+              
+              covers.push({
+                key,
+                gameName: decodeURIComponent(gameName),
+                console,
+                date: new Date(item.timestamp).toLocaleDateString(),
+                url: item.url
+              });
+            } catch (err) {
+              console.error("Error parsing cache item:", err);
+            }
+          }
+        }
+        
+        // Sort by most recent first
+        covers.sort((a, b) => new Date(b.date) - new Date(a.date));
+        setCachedCovers(covers);
+      }
+    } catch (err) {
+      console.error("Error loading cached covers:", err);
+    }
+  };
 
   const updateCacheStats = () => {
     try {
@@ -75,6 +148,10 @@ export default function CoverManagerPage() {
   };
 
   const purgeAllCache = () => {
+    if (!confirm('Are you sure you want to delete ALL cached covers? This cannot be undone.')) {
+      return;
+    }
+    
     try {
       if (typeof window !== 'undefined') {
         const keysToRemove = [];
@@ -89,6 +166,8 @@ export default function CoverManagerPage() {
         keysToRemove.forEach(key => localStorage.removeItem(key));
         
         setSearchHistory([]);
+        setCachedCovers([]);
+        setSelectedCovers(new Set());
         updateCacheStats();
         
         alert(`Successfully cleared ${keysToRemove.length} cached covers`);
@@ -99,229 +178,268 @@ export default function CoverManagerPage() {
     }
   };
 
-  const searchGame = async () => {
-    if (!gameTitle || !platform) {
-      alert('Please enter a game title and select a platform');
+  const deleteSelectedCovers = () => {
+    if (selectedCovers.size === 0) {
+      alert('Please select covers to delete');
       return;
     }
-    
-    setLoading(true);
-    setSearchResults([]);
-    
+
+    if (!confirm(`Are you sure you want to delete ${selectedCovers.size} selected covers?`)) {
+      return;
+    }
+
     try {
-      // Search for game cover with a timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+      selectedCovers.forEach(key => {
+        localStorage.removeItem(key);
+      });
       
-      try {
-        const response = await fetch(
-          `/api/game-covers?name=${encodeURIComponent(gameTitle)}&core=${platform}&source=screenscraper`,
-          { signal: controller.signal }
-        );
-        
-        clearTimeout(timeoutId);
-        
-        if (!response.ok) {
-          // Try to parse the error response
-          let errorData;
-          try {
-            errorData = await response.json();
-            throw new Error(errorData.error || `Server error: ${response.status}`);
-          } catch (parseError) {
-            // If JSON parsing fails, use the status text
-            throw new Error(`Server error (${response.status}): ${response.statusText}`);
-          }
-        }
-        
-        const data = await response.json();
-        
-        if (data.success && data.coverUrl) {
-          setSearchResults([{
-            title: gameTitle,
-            platform,
-            coverUrl: data.coverUrl
-          }]);
-          
-          // Save to localStorage for permanent caching
-          const cacheKey = `screenscraper:${encodeURIComponent(gameTitle)}:${platform}`;
-          localStorage.setItem(`cover_${cacheKey}`, JSON.stringify({
-            url: data.coverUrl,
-            timestamp: Date.now()
-          }));
-          
-          // Update stats after adding new cache
-          updateCacheStats();
-        } else {
-          alert('No cover found for this game');
-        }
-      } catch (fetchError) {
-        if (fetchError.name === 'AbortError') {
-          throw new Error('Request timed out. The server took too long to respond.');
-        } else {
-          throw fetchError;
-        }
-      }
-    } catch (error) {
-      console.error('Error searching for game cover:', error);
+      setSelectedCovers(new Set());
+      loadCachedCovers();
+      updateCacheStats();
       
-      // Provide a more user-friendly error message
-      let errorMessage = error.message;
-      if (errorMessage.includes('504') || errorMessage.includes('timeout')) {
-        errorMessage = 'The request to screenscraper.fr timed out. The service might be busy or temporarily unavailable. Please try again later.';
-      } else if (errorMessage.includes('Unexpected token')) {
-        errorMessage = 'Received an invalid response from the server. The screenscraper.fr service might be experiencing issues.';
-      }
-      
-      alert('Error: ' + errorMessage);
-    } finally {
-      setLoading(false);
+      alert(`Successfully deleted ${selectedCovers.size} covers`);
+    } catch (err) {
+      console.error("Error deleting selected covers:", err);
+      alert("Error deleting covers: " + err.message);
     }
   };
 
-  const removeCacheItem = (key) => {
+  const deleteConsoleCovers = (consoleId) => {
+    if (!confirm(`Are you sure you want to delete ALL covers for ${consoles.find(c => c.id === consoleId)?.name}?`)) {
+      return;
+    }
+
+    try {
+      const keysToRemove = [];
+      
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith('cover_') && key.split(':').pop() === consoleId) {
+          keysToRemove.push(key);
+        }
+      }
+      
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+      
+      loadCachedCovers();
+      updateCacheStats();
+      
+      alert(`Successfully deleted ${keysToRemove.length} covers for ${consoles.find(c => c.id === consoleId)?.name}`);
+    } catch (err) {
+      console.error("Error deleting console covers:", err);
+      alert("Error deleting covers: " + err.message);
+    }
+  };
+
+  const toggleCoverSelection = (key) => {
+    const newSelected = new Set(selectedCovers);
+    if (newSelected.has(key)) {
+      newSelected.delete(key);
+    } else {
+      newSelected.add(key);
+    }
+    setSelectedCovers(newSelected);
+  };
+
+  const deleteCover = (key) => {
     try {
       localStorage.removeItem(key);
+      loadCachedCovers();
       updateCacheStats();
     } catch (err) {
-      console.error("Error removing cache item:", err);
+      console.error("Error deleting cover:", err);
+      alert("Error deleting cover: " + err.message);
     }
   };
 
+  const filteredCovers = cachedCovers.filter(cover => {
+    const matchesConsole = selectedConsole === 'all' || cover.console === selectedConsole;
+    const matchesSearch = !searchQuery || 
+      cover.gameName.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesConsole && matchesSearch;
+  });
+
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <h1 className="text-2xl font-bold mb-6">Game Cover Cache Manager</h1>
+    <div className="container mx-auto px-4 py-8 max-w-6xl">
+      <h1 className="text-2xl font-bold mb-6 text-white">Game Cover Cache Manager</h1>
       
-      {/* Cache Stats */}
+      {/* Cache Stats and Bulk Delete */}
       <div className="bg-main p-4 rounded-lg mb-8">
-        <div className="flex flex-wrap justify-between items-center mb-4">
+        <div className="flex flex-wrap justify-between items-start mb-6">
           <div>
-            <h2 className="text-xl font-bold mb-2">Cache Statistics</h2>
-            <p>Total Covers Cached: <span className="text-accent font-bold">{cacheStats.count}</span></p>
-            <p>Estimated Size: <span className="text-accent font-bold">{cacheStats.size} MB</span></p>
+            <h2 className="text-xl font-bold mb-2 text-white">Cache Statistics</h2>
+            <p className="text-gray-300">Total Covers Cached: <span className="text-accent font-bold">{cacheStats.count}</span></p>
+            <p className="text-gray-300">Estimated Size: <span className="text-accent font-bold">{cacheStats.size} MB</span></p>
           </div>
-          
-          <button
-            onClick={purgeAllCache}
-            className="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded"
-          >
-            Purge All Cache
-          </button>
-        </div>
-        
-        <p className="text-sm text-gray-400 mt-2">
-          Images are cached permanently in your browser's localStorage. 
-          Use the purge button to clear all cached covers.
-        </p>
-      </div>
-      
-      {/* Search Form */}
-      <div className="bg-main p-4 rounded-lg mb-8">
-        <h2 className="text-xl font-bold mb-4">Search Game Cover</h2>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block mb-2">Game Title</label>
-            <input
-              type="text"
-              value={gameTitle}
-              onChange={(e) => setGameTitle(e.target.value)}
-              className="w-full p-2 bg-primary border border-accent-secondary rounded"
-              placeholder="Enter game title (e.g. Super Mario Bros)"
-            />
-          </div>
-          
-          <div>
-            <label className="block mb-2">Platform</label>
-            <select
-              value={platform}
-              onChange={(e) => setPlatform(e.target.value)}
-              className="w-full p-2 bg-primary border border-accent-secondary rounded"
+          <div className="flex gap-2">
+            <button
+              onClick={purgeAllCache}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded flex items-center gap-2"
             >
-              <option value="nes">NES</option>
-              <option value="snes">SNES</option>
-              <option value="n64">Nintendo 64</option>
-              <option value="gb">Game Boy</option>
-              <option value="gbc">Game Boy Color</option>
-              <option value="gba">Game Boy Advance</option>
-              <option value="psx">PlayStation</option>
-              <option value="segaMD">Sega Genesis/MegaDrive</option>
-              <option value="segaCD">Sega CD</option>
-              <option value="saturn">Sega Saturn</option>
-              <option value="arcade">Arcade</option>
+              <FiTrash2 /> Clear All Cache
+            </button>
+          </div>
+        </div>
+
+        {/* Bulk Delete Grid */}
+        <div>
+          <h3 className="text-lg font-semibold mb-3 text-white">Bulk Delete by Console</h3>
+          
+          {/* Nintendo Dropdown */}
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <FaGamepad className="text-accent" size={20} />
+              <span className="font-medium text-white">Nintendo</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 ml-6">
+              {groupedConsoles.nintendo.map(console => (
+                <button
+                  key={console.id}
+                  onClick={() => deleteConsoleCovers(console.id)}
+                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm flex items-center justify-center gap-2"
+                >
+                  <FiTrash2 size={14} /> {console.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Sega Dropdown */}
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <SiSega className="text-accent" size={20} />
+              <span className="font-medium text-white">Sega</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 ml-6">
+              {groupedConsoles.sega.map(console => (
+                <button
+                  key={console.id}
+                  onClick={() => deleteConsoleCovers(console.id)}
+                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm flex items-center justify-center gap-2"
+                >
+                  <FiTrash2 size={14} /> {console.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Sony Dropdown */}
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <SiPlaystation className="text-accent" size={20} />
+              <span className="font-medium text-white">Sony</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 ml-6">
+              {groupedConsoles.sony.map(console => (
+                <button
+                  key={console.id}
+                  onClick={() => deleteConsoleCovers(console.id)}
+                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm flex items-center justify-center gap-2"
+                >
+                  <FiTrash2 size={14} /> {console.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Other Dropdown */}
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <FaDice className="text-accent" size={20} />
+              <span className="font-medium text-white">Other</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 ml-6">
+              {groupedConsoles.other.map(console => (
+                <button
+                  key={console.id}
+                  onClick={() => deleteConsoleCovers(console.id)}
+                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm flex items-center justify-center gap-2"
+                >
+                  <FiTrash2 size={14} /> {console.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Search and Filter Controls */}
+      <div className="bg-main p-4 rounded-lg mb-8">
+        <div className="flex flex-wrap gap-4 mb-4">
+          <div className="flex-1 min-w-[200px]">
+            <label className="block text-sm font-medium text-gray-300 mb-1">Search Cached Covers</label>
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by game name..."
+                className="w-full bg-dark text-white px-4 py-2 rounded pl-10"
+              />
+              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            </div>
+          </div>
+          <div className="min-w-[200px]">
+            <label className="block text-sm font-medium text-gray-300 mb-1">Filter by Console</label>
+            <select
+              value={selectedConsole}
+              onChange={(e) => setSelectedConsole(e.target.value)}
+              className="w-full bg-dark text-white px-4 py-2 rounded"
+            >
+              {consoles.map(console => (
+                <option key={console.id} value={console.id}>{console.name}</option>
+              ))}
             </select>
           </div>
         </div>
         
-        <button
-          onClick={searchGame}
-          disabled={loading}
-          className="bg-accent text-black py-2 px-4 rounded hover:bg-accent/80 disabled:opacity-50"
-        >
-          {loading ? 'Searching...' : 'Search Cover'}
-        </button>
+        {selectedCovers.size > 0 && (
+          <div className="flex justify-between items-center mb-4">
+            <span className="text-accent">{selectedCovers.size} covers selected</span>
+            <button
+              onClick={deleteSelectedCovers}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded flex items-center gap-2"
+            >
+              <FiTrash2 /> Delete Selected
+            </button>
+          </div>
+        )}
       </div>
-      
-      {/* Search Results */}
-      {searchResults.length > 0 && (
-        <div className="bg-main p-4 rounded-lg mb-8">
-          <h2 className="text-xl font-bold mb-4">Search Results</h2>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {searchResults.map((result, index) => (
-              <div key={index} className="bg-primary p-2 rounded border border-accent-secondary">
-                <h3 className="font-medium text-center mb-2">{result.title}</h3>
-                <div className="aspect-[3/4] bg-black mb-2 rounded overflow-hidden">
-                  <Image
-                    src={result.coverUrl}
-                    width={300}
-                    height={400}
-                    alt={result.title}
-                    className="object-contain w-full h-full"
-                  />
-                </div>
-                <p className="text-xs text-center text-accent">
-                  Platform: {result.platform}
-                </p>
-                <p className="text-xs text-center text-green-500">
-                  Cached Successfully!
-                </p>
+
+      {/* Cached Covers Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {filteredCovers.map((cover) => (
+          <div 
+            key={cover.key}
+            className={`bg-main p-4 rounded-lg relative group ${
+              selectedCovers.has(cover.key) ? 'ring-2 ring-accent' : ''
+            }`}
+          >
+            <div className="aspect-square relative mb-2">
+              <Image
+                src={cover.url}
+                alt={cover.gameName}
+                fill
+                className="object-cover rounded"
+              />
+            </div>
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="font-medium text-white truncate">{cover.gameName}</h3>
+                <p className="text-sm text-gray-400">{cover.console.toUpperCase()}</p>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-      
-      {/* Cache History */}
-      {searchHistory.length > 0 && (
-        <div className="bg-main p-4 rounded-lg">
-          <h2 className="text-xl font-bold mb-4">Recently Cached Covers</h2>
-          
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {searchHistory.map((item, index) => (
-              <div key={index} className="bg-primary p-2 rounded border border-accent-secondary relative">
+              <div className="flex gap-2">
                 <button
-                  onClick={() => removeCacheItem(item.key)}
-                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
-                  title="Remove from cache"
+                  onClick={() => deleteCover(cover.key)}
+                  className="p-1 rounded text-gray-400 hover:bg-red-600 hover:text-white transition-colors"
                 >
-                  ×
+                  <FiTrash2 size={16} />
                 </button>
-                <div className="aspect-[3/4] bg-black mb-2 rounded overflow-hidden">
-                  <Image
-                    src={item.url}
-                    width={150}
-                    height={200}
-                    alt={item.gameName}
-                    className="object-contain w-full h-full"
-                  />
-                </div>
-                <p className="text-xs font-medium truncate">{item.gameName}</p>
-                <p className="text-xs text-gray-400">Cached: {item.date}</p>
               </div>
-            ))}
+            </div>
           </div>
-        </div>
-      )}
+        ))}
+      </div>
     </div>
   );
 } 

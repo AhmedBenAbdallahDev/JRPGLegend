@@ -1,6 +1,7 @@
 'use client';
 import EnhancedGameCover from "./EnhancedGameCover";
-import { SiNintendo, SiPlaystation, SiSega } from 'react-icons/si';
+import Image from 'next/image';
+import { SiPlaystation, SiSega } from 'react-icons/si';
 import { FaGamepad, FaMobileAlt } from 'react-icons/fa';
 
 export default function GameCard({ game, category }) {
@@ -8,22 +9,22 @@ export default function GameCard({ game, category }) {
   
   // Function to get the appropriate icon for each platform category
   const getCategoryIcon = (slug) => {
-    const iconSize = 16;
+    const iconSize = 24;
     
     if (!slug) return <FaGamepad size={iconSize} />;
     
     switch (slug) {
       case 'nes':
       case 'snes':
-        return <SiNintendo size={iconSize} />;
+        return <FaGamepad size={iconSize} />;
       case 'n64':
-        return <SiNintendo size={iconSize} />;
+        return <FaGamepad size={iconSize} />;
       case 'gb':
       case 'gbc':
       case 'gba':
         return <FaMobileAlt size={iconSize} />;
       case 'nds':
-        return <SiNintendo size={iconSize} />;
+        return <FaGamepad size={iconSize} />;
       case 'genesis':
       case 'segacd':
       case 'saturn':

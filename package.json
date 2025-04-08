@@ -23,6 +23,7 @@
     "@prisma/client": "^5.22.0",
     "bcryptjs": "^2.4.3",
     "disqus-react": "^1.1.5",
+    "dotenv": "^16.4.7",
     "next": "^14.2.14",
     "next-auth": "^5.0.0-beta.22",
     "node-fetch": "^3.3.2",

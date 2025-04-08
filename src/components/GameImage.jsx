@@ -39,19 +39,12 @@ export default function GameImage({
   const [error, setError] = useState(null);
   const [fromWikimedia, setFromWikimedia] = useState(false);
   
-  // Function to get a region-specific search title
-  const getRegionSearchTitle = (baseTitle, gameRegion) => {
-    // Handle null/empty region as 'us'
-    const effectiveRegion = gameRegion && gameRegion.trim() ? gameRegion.trim().toLowerCase() : 'us';
-    
-    if (effectiveRegion === 'jp') {
-      return `${baseTitle} Japan video game`;
-    } else if (effectiveRegion === 'eu') {
-      return `${baseTitle} Europe video game`;
-    } else {
-      // Default to US search terms
+  // Function to get a search title with console name
+  const getSearchTitle = (baseTitle, gameCore) => {
+    if (!gameCore) {
       return `${baseTitle} video game`;
     }
+    return `${baseTitle} ${gameCore} video game`;
   };
   
   useEffect(() => {
@@ -112,8 +105,12 @@ export default function GameImage({
       
       // Step 1: First, search for the page to get the exact title - EXACTLY as in Wiki Image Extraction Test
       console.log(`[GameImage] Step 1 - Searching for: ${searchTitle}`);
-      const searchQuery = getRegionSearchTitle(searchTitle, region);
-      console.log(`[GameImage] Using region-specific search query: "${searchQuery}"`);
+      const searchQuery = getSearchTitle(searchTitle, core);
+      console.log(`[GameImage] ===== SEARCH QUERY =====`);
+      console.log(`[GameImage] Game Title: ${searchTitle}`);
+      console.log(`[GameImage] Console: ${core || 'none'}`);
+      console.log(`[GameImage] Final Search Query: "${searchQuery}"`);
+      console.log(`[GameImage] ======================`);
       
       const searchResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchQuery)}&format=json&origin=*`);
       

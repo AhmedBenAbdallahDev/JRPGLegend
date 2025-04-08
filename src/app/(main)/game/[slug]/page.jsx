@@ -2,7 +2,7 @@ import { getGameBySlug } from "@/lib/gameQueries";
 import GameEmulator from "@/components/GameEmulator";
 import Disqus from "@/components/Disqus";
 import { Suspense } from "react";
-import { SiNintendo, SiPlaystation, SiSega } from 'react-icons/si';
+import { SiPlaystation, SiSega } from 'react-icons/si';
 import { FaGamepad, FaMobileAlt } from 'react-icons/fa';
 
 export async function generateMetadata({ params }) {
@@ -18,22 +18,20 @@ export async function generateMetadata({ params }) {
 
 // Function to get the appropriate icon for each platform category
 const getCategoryIcon = (slug) => {
-  const iconSize = 20;
-  
-  if (!slug) return <FaGamepad size={iconSize} />;
+  const iconSize = 24;
   
   switch (slug) {
     case 'nes':
     case 'snes':
-      return <SiNintendo size={iconSize} />;
+      return <FaGamepad size={iconSize} />;
     case 'n64':
-      return <SiNintendo size={iconSize} />;
+      return <FaGamepad size={iconSize} />;
     case 'gb':
     case 'gbc':
     case 'gba':
       return <FaMobileAlt size={iconSize} />;
     case 'nds':
-      return <SiNintendo size={iconSize} />;
+      return <FaGamepad size={iconSize} />;
     case 'genesis':
     case 'segacd':
     case 'saturn':

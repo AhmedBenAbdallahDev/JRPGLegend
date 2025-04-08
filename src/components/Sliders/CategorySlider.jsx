@@ -5,7 +5,7 @@ import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
 import { ChevronRightIcon } from "@heroicons/react/24/outline";
-import { SiNintendo, SiPlaystation, SiSega } from 'react-icons/si';
+import { SiPlaystation, SiSega } from 'react-icons/si';
 import { FaGamepad, FaMobileAlt } from 'react-icons/fa';
 
 export default function CategorySlider({ categories }) {
@@ -25,23 +25,22 @@ export default function CategorySlider({ categories }) {
     },
   };
 
-  // Function to get the appropriate icon for each platform
-  const getPlatformIcon = (slug) => {
-    const iconSize = 40;
+  // Function to get the appropriate icon for each platform category
+  const getCategoryIcon = (slug) => {
+    const iconSize = 24;
     
     switch (slug) {
       case 'nes':
-        return <SiNintendo size={iconSize} />;
       case 'snes':
-        return <SiNintendo size={iconSize} />;
+        return <FaGamepad size={iconSize} />;
       case 'n64':
-        return <SiNintendo size={iconSize} />;
+        return <FaGamepad size={iconSize} />;
       case 'gb':
       case 'gbc':
       case 'gba':
         return <FaMobileAlt size={iconSize} />;
       case 'nds':
-        return <SiNintendo size={iconSize} />;
+        return <FaGamepad size={iconSize} />;
       case 'genesis':
       case 'segacd':
       case 'saturn':
@@ -123,7 +122,7 @@ export default function CategorySlider({ categories }) {
             <SwiperSlide key={category.id} className="group">
               <a href={`/category/${category.slug}`} className="group">
                 <div className={`overflow-hidden rounded-lg ${getPlatformColors(category.slug)} aspect-square flex items-center justify-center mb-2`}>
-                  {getPlatformIcon(category.slug)}
+                  {getCategoryIcon(category.slug)}
                 </div>
                 <h1 className="text-center text-sm mt-2">{category.title}</h1>
                 {category.games && (

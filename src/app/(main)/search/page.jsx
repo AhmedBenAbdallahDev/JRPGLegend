@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { getSearchResults } from "@/lib/gameQueries";
-import { SiNintendo, SiPlaystation, SiSega } from 'react-icons/si';
+import { SiPlaystation, SiSega } from 'react-icons/si';
 import { FaGamepad, FaMobileAlt } from 'react-icons/fa';
 import EnhancedGameCover from "@/components/EnhancedGameCover";
 
@@ -13,15 +13,15 @@ const getCategoryIcon = (slug) => {
   switch (slug) {
     case 'nes':
     case 'snes':
-      return <SiNintendo size={iconSize} />;
+      return <FaGamepad size={iconSize} />;
     case 'n64':
-      return <SiNintendo size={iconSize} />;
+      return <FaGamepad size={iconSize} />;
     case 'gb':
     case 'gbc':
     case 'gba':
       return <FaMobileAlt size={iconSize} />;
     case 'nds':
-      return <SiNintendo size={iconSize} />;
+      return <FaGamepad size={iconSize} />;
     case 'genesis':
     case 'segacd':
     case 'saturn':
