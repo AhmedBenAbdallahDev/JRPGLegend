@@ -120,20 +120,136 @@ export default function EnhancedGameCover({
             if (parts.length >= 2) {
               const title = decodeURIComponent(parts[1]);
               // Use game-images API to fetch from Wikimedia
-              const response = await fetch(`/api/game-images?name=${encodeURIComponent(title)}${game.core ? `&console=${encodeURIComponent(game.core)}` : ''}`);
-              const data = await response.json();
+              const searchQuery = `${game.title} ${game.core} game`;
+              console.log(`[EnhancedGameCover] ===== SEARCH QUERY =====`);
+              console.log(`[EnhancedGameCover] Game Title: ${game.title}`);
+              console.log(`[EnhancedGameCover] Console: ${game.core}`);
+              console.log(`[EnhancedGameCover] Final Search Query: "${searchQuery}"`);
+              console.log(`[EnhancedGameCover] ======================`);
               
-              if (data.success && data.imageUrl) {
-                setCoverUrl(data.imageUrl);
-                saveToLocalCache(game.image, data.imageUrl);
+              const searchResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchQuery)}&format=json&origin=*`);
+              
+              if (!searchResponse.ok) {
+                throw new Error(`Wikipedia search failed: ${searchResponse.status}`);
               }
+              
+              const searchData = await searchResponse.json();
+              console.log(`[EnhancedGameCover] Search results:`, searchData.query ? `Found ${searchData.query.search?.length || 0} results` : 'No results');
+              
+              if (!searchData.query?.search || searchData.query.search.length === 0) {
+                throw new Error('No search results found');
+              }
+              
+              // Filter out console pages and prioritize game pages
+              const filteredResults = searchData.query.search.filter(result => {
+                const title = result.title.toLowerCase();
+                const consoleName = game.core.toLowerCase();
+                // Exclude pages that are just about the console
+                return !title.includes(consoleName) || title.includes(game.title.toLowerCase());
+              });
+              
+              if (filteredResults.length === 0) {
+                throw new Error('No suitable game pages found');
+              }
+              
+              // Get the exact title from the first filtered result
+              const exactTitle = filteredResults[0].title;
+              console.log(`[EnhancedGameCover] Found exact title: "${exactTitle}"`);
+              
+              // Step 2: Now fetch the raw HTML content to extract images - Same as in Wiki Image Extraction Test
+              console.log(`[EnhancedGameCover] Step 2 - Fetching HTML content for: ${exactTitle}`);
+              const contentResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=parse&page=${encodeURIComponent(exactTitle)}&prop=text&format=json&origin=*`);
+              
+              if (!contentResponse.ok) {
+                throw new Error(`Failed to fetch page content: ${contentResponse.status}`);
+              }
+              
+              const contentData = await contentResponse.json();
+              if (!contentData.parse?.text?.['*']) {
+                throw new Error('No HTML content found');
+              }
+              
+              const htmlContent = contentData.parse.text['*'];
+              console.log(`[EnhancedGameCover] Received HTML content (${htmlContent.length} chars)`);
+              
+              // Now extract the image from the HTML - Same as in Wiki Image Extraction Test
+              let extractedImageUrl = extractImageFromHtml(htmlContent);
+              
+              if (extractedImageUrl) {
+                console.log(`[EnhancedGameCover] Successfully extracted image: ${extractedImageUrl}`);
+                
+                // Store the result
+                setCoverUrl(extractedImageUrl);
+                coverCache.set(cacheKey, extractedImageUrl);
+                
+                // Cache in localStorage permanently
+                try {
+                  if (typeof window !== 'undefined') {
+                    const cacheData = {
+                      url: extractedImageUrl,
+                      title: exactTitle,
+                      source: 'wikimedia',
+                      timestamp: Date.now()
+                    };
+                    localStorage.setItem(`cover_${cacheKey}`, JSON.stringify(cacheData));
+                  }
+                } catch (err) {
+                  console.error("[EnhancedGameCover] Error saving to localStorage:", err);
+                }
+                
+                setLoading(false);
+                return;
+              }
+              
+              // Step 3: If no image found in HTML, try the thumbnail API - Same as in Wiki Image Extraction Test
+              console.log(`[EnhancedGameCover] Step 3 - No image in HTML, trying thumbnail API for: ${exactTitle}`);
+              const thumbnailResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(exactTitle)}&prop=pageimages&format=json&pithumbsize=500&origin=*`);
+              
+              if (thumbnailResponse.ok) {
+                const thumbnailData = await thumbnailResponse.json();
+                const pages = thumbnailData.query?.pages;
+                
+                if (pages) {
+                  const pageId = Object.keys(pages)[0];
+                  const thumbnail = pages[pageId]?.thumbnail?.source;
+                  
+                  if (thumbnail) {
+                    console.log(`[EnhancedGameCover] Found thumbnail: ${thumbnail}`);
+                    
+                    // Store the result
+                    setCoverUrl(thumbnail);
+                    coverCache.set(cacheKey, thumbnail);
+                    
+                    // Cache in localStorage permanently
+                    try {
+                      if (typeof window !== 'undefined') {
+                        const cacheData = {
+                          url: thumbnail,
+                          title: exactTitle,
+                          source: 'wikimedia',
+                          timestamp: Date.now()
+                        };
+                        localStorage.setItem(`cover_${cacheKey}`, JSON.stringify(cacheData));
+                      }
+                    } catch (err) {
+                      console.error("[EnhancedGameCover] Error saving to localStorage:", err);
+                    }
+                    
+                    setLoading(false);
+                    return;
+                  }
+                }
+              }
+              
+              throw new Error('No image found for this game');
+              
+            } catch (err) {
+              console.error('[EnhancedGameCover] Error fetching Wikimedia image:', err);
+              setError('Wikimedia cover unavailable');
+              setLoading(false);
+              return;
             }
-          } catch (err) {
-            setError('Wikimedia image not available');
-          } finally {
-            setLoading(false);
           }
-          return;
         }
       }
       
@@ -228,7 +344,7 @@ export default function EnhancedGameCover({
         
         // Step 1: First, search for the page to get the exact title - Same as in Wiki Image Extraction Test
         console.log(`[EnhancedGameCover] Step 1 - Searching for: ${game.title}`);
-        const searchQuery = `${game.title} ${game.core}`;
+        const searchQuery = `${game.title} ${game.core} game`;
         console.log(`[EnhancedGameCover] ===== SEARCH QUERY =====`);
         console.log(`[EnhancedGameCover] Game Title: ${game.title}`);
         console.log(`[EnhancedGameCover] Console: ${game.core}`);
@@ -248,8 +364,20 @@ export default function EnhancedGameCover({
           throw new Error('No search results found');
         }
         
-        // Get the exact title from the first search result
-        const exactTitle = searchData.query.search[0].title;
+        // Filter out console pages and prioritize game pages
+        const filteredResults = searchData.query.search.filter(result => {
+          const title = result.title.toLowerCase();
+          const consoleName = game.core.toLowerCase();
+          // Exclude pages that are just about the console
+          return !title.includes(consoleName) || title.includes(game.title.toLowerCase());
+        });
+        
+        if (filteredResults.length === 0) {
+          throw new Error('No suitable game pages found');
+        }
+        
+        // Get the exact title from the first filtered result
+        const exactTitle = filteredResults[0].title;
         console.log(`[EnhancedGameCover] Found exact title: "${exactTitle}"`);
         
         // Step 2: Now fetch the raw HTML content to extract images - Same as in Wiki Image Extraction Test
