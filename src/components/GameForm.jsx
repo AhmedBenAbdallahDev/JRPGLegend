@@ -182,7 +182,7 @@ export default function GameForm({ categories = [] }) {
     console.log(`[GameForm] Searching Wikimedia for: ${formData.title}`);
     
     // Step 1: First, search for the page to get the exact title
-    const searchQuery = `${formData.title} video game`;
+    const searchQuery = `${formData.title}`;
     console.log(`[GameForm] Search query: ${searchQuery}`);
     
     const searchResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchQuery)}&format=json&origin=*`);

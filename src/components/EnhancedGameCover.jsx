@@ -228,7 +228,7 @@ export default function EnhancedGameCover({
         
         // Step 1: First, search for the page to get the exact title - Same as in Wiki Image Extraction Test
         console.log(`[EnhancedGameCover] Step 1 - Searching for: ${game.title}`);
-        const searchQuery = `${game.title} ${game.core} video game`;
+        const searchQuery = `${game.title} ${game.core}`;
         console.log(`[EnhancedGameCover] ===== SEARCH QUERY =====`);
         console.log(`[EnhancedGameCover] Game Title: ${game.title}`);
         console.log(`[EnhancedGameCover] Console: ${game.core}`);
