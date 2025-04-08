@@ -228,14 +228,17 @@ export default function EnhancedGameCover({
         
         // Step 1: First, search for the page to get the exact title - Same as in Wiki Image Extraction Test
         console.log(`[EnhancedGameCover] Step 1 - Searching for: ${game.title}`);
-        const searchQuery = `${game.title} ${game.core} video game`;
+        
+        // Remove "video game" suffix and just use title and core for better search results
+        const searchQuery = `${game.title} ${game.core}`;
         console.log(`[EnhancedGameCover] ===== SEARCH QUERY =====`);
         console.log(`[EnhancedGameCover] Game Title: ${game.title}`);
         console.log(`[EnhancedGameCover] Console: ${game.core}`);
         console.log(`[EnhancedGameCover] Final Search Query: "${searchQuery}"`);
         console.log(`[EnhancedGameCover] ======================`);
         
-        const searchResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchQuery)}&format=json&origin=*`);
+        // Limit results to 3 for faster loading
+        const searchResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchQuery)}&format=json&origin=*&srlimit=3`);
         
         if (!searchResponse.ok) {
           throw new Error(`Wikipedia search failed: ${searchResponse.status}`);
@@ -248,8 +251,37 @@ export default function EnhancedGameCover({
           throw new Error('No search results found');
         }
         
-        // Get the exact title from the first search result
-        const exactTitle = searchData.query.search[0].title;
+        // Filter out unwanted results like "List of..." entries or console-only entries
+        const filteredResults = searchData.query.search.filter(result => {
+          const title = result.title.toLowerCase();
+          
+          // Reject results that start with "List of"
+          if (title.startsWith("list of")) return false;
+          
+          // Reject results that are just console names
+          if (title === game.core.toLowerCase()) return false;
+          if (title === "game boy advance" || title === "gba") return false;
+          if (title === "nintendo entertainment system" || title === "nes") return false;
+          if (title === "super nintendo entertainment system" || title === "snes") return false;
+          if (title === "nintendo 64" || title === "n64") return false;
+          if (title === "game boy" || title === "gb") return false;
+          if (title === "game boy color" || title === "gbc") return false;
+          if (title === "playstation" || title === "psx") return false;
+          if (title === "playstation portable" || title === "psp") return false;
+          if (title === "sega genesis" || title === "genesis") return false;
+          if (title === "sega cd" || title === "segacd") return false;
+          if (title === "sega saturn" || title === "saturn") return false;
+          if (title === "nintendo ds" || title === "nds") return false;
+          
+          return true;
+        });
+        
+        if (filteredResults.length === 0) {
+          throw new Error('No relevant search results found');
+        }
+        
+        // Get the exact title from the first filtered search result
+        const exactTitle = filteredResults[0].title;
         console.log(`[EnhancedGameCover] Found exact title: "${exactTitle}"`);
         
         // Step 2: Now fetch the raw HTML content to extract images - Same as in Wiki Image Extraction Test
@@ -436,128 +468,191 @@ export default function EnhancedGameCover({
 
 // Update the fetchGameCover function to include Wikipedia option
 export async function fetchGameCover(gameTitle, core, preferredSource = 'auto') {
-  // Skip fetch if parameters are missing
-  if (!gameTitle || !core) return null;
+  if (!gameTitle || !core) {
+    throw new Error('Missing game title or core');
+  }
 
-  try {
-    // Generate a cache key based on game title, core, and preferred source
-    const cacheKey = `game_cover_${preferredSource}_${gameTitle.toLowerCase()}_${core}`;
-    
-    // Check in-memory cache first
-    if (coverCache[cacheKey]) {
-      return coverCache[cacheKey];
-    }
-    
-    // Check localStorage cache next (if available)
-    if (typeof localStorage !== 'undefined') {
-      const cachedData = localStorage.getItem(cacheKey);
-      if (cachedData) {
-        try {
-          const parsedData = JSON.parse(cachedData);
-          // Check if cache is expired (7 days)
-          const now = new Date();
-          const cacheTime = new Date(parsedData.timestamp);
-          const cacheAge = now - cacheTime;
-          const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
-          
-          if (cacheAge < maxAge) {
-            // Add to memory cache
-            coverCache[cacheKey] = parsedData;
-            return parsedData;
-          }
-        } catch (e) {
-          console.error('Error parsing cached cover:', e);
-          // Invalid cache, continue to fetch
-        }
-      }
-    }
-    
-    // Create an abort controller for timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15-second timeout
-    
-    // Use source parameter to specify the API source
-    const queryParams = new URLSearchParams({
-      name: gameTitle,
-      core: core,
-      source: preferredSource
-    });
-    
+  console.log(`[fetchGameCover] Starting fetch for ${gameTitle}, ${core} using source: ${preferredSource}`);
+
+  // Generate cache key
+  const cacheKey = `${preferredSource}:${gameTitle}:${core}`;
+  
+  // Check in-memory cache
+  if (coverCache.has(cacheKey)) {
+    return {
+      url: coverCache.get(cacheKey),
+      source: preferredSource,
+      fromCache: true
+    };
+  }
+  
+  // Check localStorage cache
+  const cachedUrl = getFromLocalCache(cacheKey);
+  if (cachedUrl) {
+    coverCache.set(cacheKey, cachedUrl);
+    return {
+      url: cachedUrl,
+      source: preferredSource,
+      fromCache: true
+    };
+  }
+  
+  if (preferredSource === 'auto' || preferredSource === 'wikimedia') {
     try {
-      const response = await fetch(`/api/game-covers?${queryParams.toString()}`, {
-        signal: controller.signal
+      console.log(`[fetchGameCover] Using Wiki Image Extraction method for: ${gameTitle}`);
+      
+      // Remove "video game" suffix and just use title and core for better search results
+      const searchQuery = `${gameTitle} ${core}`;
+      console.log(`[fetchGameCover] ===== SEARCH QUERY =====`);
+      console.log(`[fetchGameCover] Game Title: ${gameTitle}`);
+      console.log(`[fetchGameCover] Console: ${core}`);
+      console.log(`[fetchGameCover] Final Search Query: "${searchQuery}"`);
+      console.log(`[fetchGameCover] ======================`);
+      
+      // Limit results to 3 for faster loading
+      const searchResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchQuery)}&format=json&origin=*&srlimit=3`);
+      
+      if (!searchResponse.ok) {
+        throw new Error(`Wikipedia search failed: ${searchResponse.status}`);
+      }
+      
+      const searchData = await searchResponse.json();
+      console.log(`[fetchGameCover] Search results:`, searchData.query ? `Found ${searchData.query.search?.length || 0} results` : 'No results');
+      
+      if (!searchData.query?.search || searchData.query.search.length === 0) {
+        throw new Error('No search results found');
+      }
+      
+      // Filter out unwanted results like "List of..." entries or console-only entries
+      const filteredResults = searchData.query.search.filter(result => {
+        const title = result.title.toLowerCase();
+        
+        // Reject results that start with "List of"
+        if (title.startsWith("list of")) return false;
+        
+        // Reject results that are just console names
+        if (title === core.toLowerCase()) return false;
+        if (title === "game boy advance" || title === "gba") return false;
+        if (title === "nintendo entertainment system" || title === "nes") return false;
+        if (title === "super nintendo entertainment system" || title === "snes") return false;
+        if (title === "nintendo 64" || title === "n64") return false;
+        if (title === "game boy" || title === "gb") return false;
+        if (title === "game boy color" || title === "gbc") return false;
+        if (title === "playstation" || title === "psx") return false;
+        if (title === "playstation portable" || title === "psp") return false;
+        if (title === "sega genesis" || title === "genesis") return false;
+        if (title === "sega cd" || title === "segacd") return false;
+        if (title === "sega saturn" || title === "saturn") return false;
+        if (title === "nintendo ds" || title === "nds") return false;
+        
+        return true;
       });
       
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        // Handle API errors
-        if (response.status === 404) {
-          throw new Error('No cover found for this game');
-        } else if (response.status === 503) {
-          throw new Error('Game cover API is temporarily unavailable');
-        } else {
-          const errorData = await response.json();
-          throw new Error(errorData.error || `API error: ${response.status}`);
-        }
+      if (filteredResults.length === 0) {
+        throw new Error('No relevant search results found');
       }
       
-      const data = await response.json();
+      // Get the exact title from the first filtered search result
+      const exactTitle = filteredResults[0].title;
+      console.log(`[fetchGameCover] Found exact title: "${exactTitle}"`);
       
-      if (data && data.coverUrl) {
-        // Create result object
-        const result = {
-          coverUrl: data.coverUrl,
-          title: data.gameTitle || gameTitle,
-          source: data.source || preferredSource,
-          timestamp: new Date().toISOString()
-        };
+      // Step 2: Now fetch the raw HTML content to extract images - Same as in Wiki Image Extraction Test
+      console.log(`[fetchGameCover] Step 2 - Fetching HTML content for: ${exactTitle}`);
+      const contentResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=parse&page=${encodeURIComponent(exactTitle)}&prop=text&format=json&origin=*`);
+      
+      if (!contentResponse.ok) {
+        throw new Error(`Failed to fetch page content: ${contentResponse.status}`);
+      }
+      
+      const contentData = await contentResponse.json();
+      if (!contentData.parse?.text?.['*']) {
+        throw new Error('No HTML content found');
+      }
+      
+      const htmlContent = contentData.parse.text['*'];
+      console.log(`[fetchGameCover] Received HTML content (${htmlContent.length} chars)`);
+      
+      // Now extract the image from the HTML - Same as in Wiki Image Extraction Test
+      let extractedImageUrl = extractImageFromHtml(htmlContent);
+      
+      if (extractedImageUrl) {
+        console.log(`[fetchGameCover] Successfully extracted image: ${extractedImageUrl}`);
         
-        // Check for Wikipedia page URL if available
-        if (data.pageUrl) {
-          result.pageUrl = data.pageUrl;
+        // Store the result
+        coverCache.set(cacheKey, extractedImageUrl);
+        
+        // Cache in localStorage permanently
+        try {
+          if (typeof localStorage !== 'undefined') {
+            const cacheData = {
+              url: extractedImageUrl,
+              title: exactTitle,
+              source: 'wikimedia',
+              timestamp: Date.now()
+            };
+            localStorage.setItem(`cover_${cacheKey}`, JSON.stringify(cacheData));
+          }
+        } catch (err) {
+          console.error("[fetchGameCover] Error saving to localStorage:", err);
         }
         
-        // Add to in-memory cache
-        coverCache[cacheKey] = result;
+        return {
+          url: extractedImageUrl,
+          source: 'wikimedia',
+          fromCache: false
+        };
+      }
+      
+      // Step 3: If no image found in HTML, try the thumbnail API - Same as in Wiki Image Extraction Test
+      console.log(`[fetchGameCover] Step 3 - No image in HTML, trying thumbnail API for: ${exactTitle}`);
+      const thumbnailResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(exactTitle)}&prop=pageimages&format=json&pithumbsize=500&origin=*`);
+      
+      if (thumbnailResponse.ok) {
+        const thumbnailData = await thumbnailResponse.json();
+        const pages = thumbnailData.query?.pages;
         
-        // Save to localStorage if available
-        if (typeof localStorage !== 'undefined') {
-          try {
-            localStorage.setItem(cacheKey, JSON.stringify(result));
-          } catch (e) {
-            console.warn('Failed to cache game cover:', e);
+        if (pages) {
+          const pageId = Object.keys(pages)[0];
+          const thumbnail = pages[pageId]?.thumbnail?.source;
+          
+          if (thumbnail) {
+            console.log(`[fetchGameCover] Found thumbnail: ${thumbnail}`);
+            
+            // Store the result
+            coverCache.set(cacheKey, thumbnail);
+            
+            // Cache in localStorage permanently
+            try {
+              if (typeof localStorage !== 'undefined') {
+                const cacheData = {
+                  url: thumbnail,
+                  title: exactTitle,
+                  source: 'wikimedia',
+                  timestamp: Date.now()
+                };
+                localStorage.setItem(`cover_${cacheKey}`, JSON.stringify(cacheData));
+              }
+            } catch (err) {
+              console.error("[fetchGameCover] Error saving to localStorage:", err);
+            }
+            
+            return {
+              url: thumbnail,
+              source: 'wikimedia',
+              fromCache: false
+            };
           }
         }
-        
-        return result;
-      } else {
-        throw new Error('No cover URL returned from API');
-      }
-    } catch (error) {
-      clearTimeout(timeoutId);
-      
-      if (error.name === 'AbortError') {
-        throw new Error('Game cover request timed out');
       }
       
-      throw error;
+      throw new Error('No image found for this game');
+      
+    } catch (err) {
+      console.error('[fetchGameCover] Error fetching Wikimedia image:', err);
+      throw err;
     }
-  } catch (error) {
-    console.error('Error fetching game cover:', error);
-    
-    // If the preferred source is not 'auto' and fails, try 'auto' as fallback
-    if (preferredSource !== 'auto') {
-      console.warn(`Trying 'auto' source as fallback for ${gameTitle}`);
-      try {
-        return await fetchGameCover(gameTitle, core, 'auto');
-      } catch (fallbackError) {
-        console.error('Fallback fetch also failed:', fallbackError);
-        throw fallbackError;
-      }
-    }
-    
-    throw error;
+  } else {
+    throw new Error(`Unknown source: ${preferredSource}`);
   }
 }
 
