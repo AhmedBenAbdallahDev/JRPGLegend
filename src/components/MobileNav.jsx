@@ -399,37 +399,37 @@ export default function MobileNav() {
           
           {apiPagesOpen && (
             <ul className="bg-muted flex flex-col gap-2 mb-6 ml-2">
-              <li>
-                <a
-                  href="/thegamesdb-test"
+            <li>
+              <a
+                href="/thegamesdb-test"
                   className="flex gap-2 items-center p-2 border-b border-accent/30"
                   onClick={() => setIsOpen(false)}
-                >
-                  <FiDatabase className="w-5 h-5 text-accent" />
-                  TheGamesDB Test
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/test-screenscraper"
+              >
+                <FiDatabase className="w-5 h-5 text-accent" />
+                TheGamesDB Test
+              </a>
+            </li>
+            <li>
+              <a
+                href="/test-screenscraper"
                   className="flex gap-2 items-center p-2 border-b border-accent/30"
                   onClick={() => setIsOpen(false)}
-                >
-                  <FiImage className="w-5 h-5 text-accent" />
-                  ScreenScraper Test
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/wikipedia-test"
+              >
+                <FiImage className="w-5 h-5 text-accent" />
+                ScreenScraper Test
+              </a>
+            </li>
+            <li>
+              <a
+                href="/wikipedia-test"
                   className="flex gap-2 items-center p-2 border-b border-accent/30"
                   onClick={() => setIsOpen(false)}
-                >
-                  <FiBookOpen className="w-5 h-5 text-accent" />
-                  Wikipedia Test
-                </a>
-              </li>
-            </ul>
+              >
+                <FiBookOpen className="w-5 h-5 text-accent" />
+                Wikipedia Test
+              </a>
+            </li>
+          </ul>
           )}
         </div>
       )}
