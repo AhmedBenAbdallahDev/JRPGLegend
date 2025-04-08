@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { FiSearch, FiBook, FiDatabase, FiInfo, FiExternalLink } from 'react-icons/fi';
+import Image from 'next/image';
 
 export default function TestWikiPage() {
   const [searchTerm, setSearchTerm] = useState('video games');
@@ -64,24 +66,19 @@ export default function TestWikiPage() {
     ];
 
     return (
-      <div style={{ 
-        backgroundColor: '#111827', 
-        borderRadius: '6px',
-        padding: '12px',
-        marginTop: '10px'
-      }}>
-        <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '8px', color: '#d1d5db' }}>
-          Game Information (Extracted Text)
+      <div className="bg-gray-900 rounded-lg p-4 mt-4 border border-gray-700">
+        <div className="text-lg font-bold mb-2 text-white flex items-center">
+          <FiDatabase className="mr-2 text-accent" /> Game Information (Extracted Text)
         </div>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <table className="w-full border-collapse">
           <tbody>
             {fields.map(field => 
               infobox[field.key] ? (
-                <tr key={field.key} style={{ borderBottom: '1px solid #374151' }}>
-                  <td style={{ padding: '6px 8px', fontWeight: 'bold', color: '#9ca3af', width: '30%' }}>
+                <tr key={field.key} className="border-b border-gray-700">
+                  <td className="py-2 px-3 font-bold text-gray-400 w-1/3">
                     {field.label}:
                   </td>
-                  <td style={{ padding: '6px 8px', color: '#e5e7eb' }}>
+                  <td className="py-2 px-3 text-gray-200">
                     {infobox[field.key]}
                   </td>
                 </tr>
@@ -94,254 +91,150 @@ export default function TestWikiPage() {
   };
 
   return (
-    <div style={{ padding: '20px', maxWidth: '900px', margin: '0 auto' }}>
-      <h1 style={{ marginBottom: '20px', color: '#3b82f6' }}>Wikimedia API Test Page</h1>
-      <div style={{ marginBottom: '20px' }}>
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Enter search term"
-          style={{ 
-            marginRight: '10px', 
-            padding: '8px 12px',
-            borderRadius: '4px',
-            border: '1px solid #ccc',
-            width: '300px'
-          }}
-        />
-        <button 
-          onClick={handleSearch} 
-          disabled={loading} 
-          style={{ 
-            padding: '8px 16px',
-            backgroundColor: '#3b82f6',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: loading ? 'not-allowed' : 'pointer',
-            opacity: loading ? 0.7 : 1
-          }}
-        >
-          {loading ? 'Searching...' : 'Search Wikimedia'}
-        </button>
+    <div className="container mx-auto px-4 py-8 max-w-5xl text-gray-200">
+      <h1 className="text-3xl font-bold mb-6 text-white flex items-center">
+        <FiBook className="mr-3 text-accent" /> Wikimedia API Test Page
+      </h1>
+      
+      <div className="bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700 mb-8">
+        <h2 className="text-xl font-bold mb-4 text-white flex items-center">
+          <FiSearch className="mr-2 text-accent" /> Search Wikipedia
+        </h2>
+        
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex-grow">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Enter search term"
+              className="w-full p-3 rounded bg-gray-900 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-accent"
+            />
+          </div>
+          <button 
+            onClick={handleSearch} 
+            disabled={loading} 
+            className="flex items-center justify-center bg-blue-600 text-white py-2 px-6 rounded hover:bg-blue-700 disabled:opacity-50"
+          >
+            {loading ? (
+              <span className="flex items-center">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Searching...
+              </span>
+            ) : (
+              <span className="flex items-center">
+                <FiSearch className="mr-2" /> Search Wikimedia
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {error && (
-        <div style={{ 
-          color: 'white',
-          backgroundColor: '#ef4444', 
-          padding: '12px',
-          borderRadius: '4px',
-          marginTop: '20px' 
-        }}>
-          <h2 style={{ marginTop: 0 }}>Error</h2>
-          <pre style={{ whiteSpace: 'pre-wrap' }}>{error}</pre>
+        <div className="bg-red-900/30 border border-red-700 p-4 rounded-lg mb-8">
+          <h2 className="text-xl font-bold mb-2 text-white flex items-center">
+            <FiInfo className="mr-2 text-red-400" /> Error
+          </h2>
+          <pre className="bg-gray-900 p-4 rounded text-red-400 whitespace-pre-wrap overflow-auto">{error}</pre>
         </div>
       )}
 
       {results && (
-        <div style={{ marginTop: '20px' }}>
-          <h2>Search Results for "{searchTerm}"</h2>
+        <div className="bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700 mb-8">
+          <h2 className="text-2xl font-bold mb-4 text-white">
+            Search Results for "{searchTerm}" ({results.length} found)
+          </h2>
+          
           {results.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+            <div className="space-y-6">
               {results.map((item) => (
-                <div key={item.pageid} style={{ 
-                  backgroundColor: '#1f2937',
-                  borderRadius: '8px',
-                  padding: '20px',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div key={item.pageid} className="bg-gray-900 rounded-lg p-4 border border-gray-700">
+                  <div className="space-y-4">
                     {/* Title and type */}
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between',
-                      alignItems: 'center', 
-                      flexWrap: 'wrap'
-                    }}>
-                      <h3 style={{ 
-                        margin: 0, 
-                        color: '#3b82f6', 
-                        fontSize: '22px',
-                        paddingRight: '10px'
-                      }}>
+                    <div className="flex justify-between items-center flex-wrap gap-2">
+                      <h3 className="text-xl font-bold text-blue-400">
                         {item.title}
                       </h3>
                       {item.isVideoGame && (
-                        <span style={{
-                          backgroundColor: '#38bdf8',
-                          color: '#0c4a6e',
-                          fontWeight: 'bold',
-                          fontSize: '12px',
-                          padding: '3px 6px',
-                          borderRadius: '4px'
-                        }}>
+                        <span className="bg-blue-600/30 text-blue-300 font-medium text-xs py-1 px-2 rounded-md">
                           VIDEO GAME
                         </span>
                       )}
                     </div>
 
                     {/* Main content */}
-                    <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                    <div className="flex flex-col md:flex-row gap-6">
                       {/* Full infobox (with images) */}
                       {item.fullInfoboxHtml ? (
                         <div 
-                          className="wikipedia-infobox"
-                          style={{ 
-                            flex: '0 0 350px',
-                            maxWidth: '100%',
-                            margin: '0 auto'
-                          }}
+                          className="wikipedia-infobox flex-shrink-0 md:w-1/3 w-full"
                           dangerouslySetInnerHTML={{ __html: item.fullInfoboxHtml }} 
                         />
                       ) : item.thumbnail && (
                         // Fallback to just the thumbnail if no infobox
-                        <div style={{ flex: '0 0 250px' }}>
-                          <img 
-                            src={item.thumbnail} 
-                            alt={`${item.title} thumbnail`}
-                            style={{ 
-                              width: '100%',
-                              height: 'auto',
-                              borderRadius: '4px',
-                              objectFit: 'cover'
-                            }}
-                          />
+                        <div className="flex-shrink-0 md:w-1/3 w-full">
+                          <div className="relative w-full aspect-[3/4] border border-gray-700 rounded overflow-hidden bg-gray-950">
+                            <Image 
+                              src={item.thumbnail.source}
+                              alt={item.title}
+                              fill
+                              className="object-contain"
+                            />
+                          </div>
+                          <p className="text-xs text-gray-400 mt-2">
+                            Image via Wikipedia
+                          </p>
                         </div>
                       )}
-                      
-                      <div style={{ flex: 1, minWidth: '250px' }}>
-                        <div dangerouslySetInnerHTML={{ __html: item.snippet }} style={{ marginBottom: '12px' }} />
+
+                      {/* Text content */}
+                      <div className="flex-grow">
+                        {/* Text snippet with HTML formatting */}
+                        <div 
+                          className="text-gray-300 mb-4"
+                          dangerouslySetInnerHTML={{ __html: item.snippet }}
+                        />
                         
-                        {/* Fallback game infobox data (text only) */}
-                        {!item.fullInfoboxHtml && item.infobox && Object.keys(item.infobox).length > 0 && 
-                          renderInfoboxData(item.infobox)
-                        }
-                        
-                        <div style={{ fontSize: '14px', color: '#9ca3af', marginTop: '16px', marginBottom: '12px' }}>
-                          Page ID: {item.pageid} | Word Count: {item.wordcount || 'N/A'} | Size: {item.size || 'N/A'} bytes
+                        {/* Links */}
+                        <div className="flex flex-wrap gap-2 mt-4">
+                          <a 
+                            href={`https://en.wikipedia.org/wiki/${encodeURIComponent(item.title)}`}
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="flex items-center bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded text-sm"
+                          >
+                            <FiExternalLink className="mr-1" /> View on Wikipedia
+                          </a>
+                          
+                          {item.pageid && (
+                            <a 
+                              href={`https://en.wikipedia.org/w/api.php?action=parse&pageid=${item.pageid}&prop=text&format=json&origin=*`}
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="flex items-center bg-gray-700 hover:bg-gray-600 text-white py-1 px-3 rounded text-sm"
+                            >
+                              <FiDatabase className="mr-1" /> View API Data
+                            </a>
+                          )}
                         </div>
                         
-                        <a 
-                          href={`https://en.wikipedia.org/?curid=${item.pageid}`} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          style={{
-                            display: 'inline-block',
-                            backgroundColor: '#2563eb',
-                            color: 'white',
-                            padding: '6px 12px',
-                            borderRadius: '4px',
-                            textDecoration: 'none',
-                            fontSize: '14px'
-                          }}
-                        >
-                          View on Wikipedia
-                        </a>
+                        {/* Extracted infobox data */}
+                        {item.infobox && renderInfoboxData(item.infobox)}
                       </div>
                     </div>
-
-                    {/* Additional styling for Wikipedia infobox */}
-                    <style jsx global>{`
-                      .wikipedia-infobox th {
-                        background-color: #eaecf0;
-                        color: #202122;
-                        padding: 4px 8px;
-                        text-align: left;
-                        font-weight: bold;
-                      }
-                      .wikipedia-infobox td {
-                        padding: 4px 8px;
-                        color: #202122;
-                      }
-                      .wikipedia-infobox a {
-                        color: #3366cc;
-                        text-decoration: none;
-                      }
-                      .wikipedia-infobox img {
-                        max-width: 100%;
-                        height: auto;
-                        display: block;
-                        margin: 0 auto;
-                      }
-                      .wikipedia-infobox caption {
-                        font-weight: bold;
-                        padding: 8px;
-                        background-color: #eaecf0;
-                        color: #202122;
-                      }
-                      .wikipedia-infobox tr {
-                        border-bottom: 1px solid #a2a9b1;
-                      }
-                    `}</style>
-
-                    {/* Display image IDs for reference */}
-                    {item.imageIds && (
-                      <div style={{ 
-                        backgroundColor: '#111827', 
-                        padding: '8px', 
-                        borderRadius: '4px',
-                        fontSize: '12px',
-                        color: '#9ca3af',
-                        overflowX: 'auto'
-                      }}>
-                        <strong>Image IDs:</strong> {item.imageIds}
-                      </div>
-                    )}
-                    
-                    {/* Additional images from the page */}
-                    {item.images && item.images.length > 0 && (
-                      <div>
-                        <div style={{ fontSize: '14px', color: '#d1d5db', marginBottom: '8px' }}>
-                          Additional Images ({item.images.length}):
-                        </div>
-                        <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px' }}>
-                          {item.images.map((img, index) => (
-                            <div key={index} style={{ flex: '0 0 200px' }}>
-                              <div style={{ position: 'relative' }}>
-                                <img 
-                                  src={img.url} 
-                                  alt={img.title}
-                                  style={{ 
-                                    width: '100%',
-                                    height: '150px',
-                                    borderRadius: '4px',
-                                    objectFit: 'cover'
-                                  }}
-                                />
-                                <div style={{ 
-                                  position: 'absolute',
-                                  bottom: '0',
-                                  left: '0',
-                                  right: '0',
-                                  backgroundColor: 'rgba(0,0,0,0.7)',
-                                  color: 'white',
-                                  padding: '4px 8px',
-                                  fontSize: '10px',
-                                  borderBottomLeftRadius: '4px',
-                                  borderBottomRightRadius: '4px'
-                                }}>
-                                  ID: {img.id || 'N/A'}<br/>
-                                  {img.width}×{img.height}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <p>No results found.</p>
+            <div className="bg-yellow-900/30 border border-yellow-700 p-4 rounded-lg">
+              <p className="text-yellow-300">No results found for "{searchTerm}"</p>
+            </div>
           )}
         </div>
-      )}
-      {!loading && !error && !results && (
-         <p style={{ marginTop: '20px' }}>Click the button to search for video games.</p>
       )}
     </div>
   );

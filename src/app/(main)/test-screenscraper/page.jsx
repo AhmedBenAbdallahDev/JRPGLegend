@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { FiSearch, FiList, FiImage, FiInfo, FiAlertCircle, FiExternalLink, FiFilter, FiServer, FiX, FiMonitor, FiTag, FiMapPin, FiMaximize2 } from 'react-icons/fi';
 
 export default function TestScreenScraperPage() {
   const [gameName, setGameName] = useState('Super Mario Bros');
@@ -151,11 +152,13 @@ export default function TestScreenScraperPage() {
     
     return (
       <div className="mb-8">
-        <h3 className="text-xl font-bold mb-4 text-white">{displayTitle}</h3>
+        <h3 className="text-xl font-bold mb-4 text-white flex items-center">
+          <FiImage className="mr-2 text-blue-400" /> {displayTitle} ({filteredImages.length})
+        </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredImages.map((img, index) => (
-            <div key={index} className="border border-gray-700 rounded-lg p-4 bg-gray-800 shadow-sm">
-              <div className="relative h-48 mb-2">
+            <div key={index} className="border border-gray-700 rounded-lg p-4 bg-gray-800 shadow-md hover:border-gray-600 transition-colors">
+              <div className="relative h-48 mb-3 bg-gray-900 rounded overflow-hidden">
                 {!failedImages[index] ? (
                   <Image 
                     src={img.url} 
@@ -165,23 +168,26 @@ export default function TestScreenScraperPage() {
                     onError={() => handleImageError(index, img.url)}
                   />
                 ) : (
-                  <div className="flex items-center justify-center h-full text-red-500">
-                    Image failed to load
+                  <div className="flex items-center justify-center h-full text-red-400">
+                    <FiAlertCircle className="mr-2" /> Image failed to load
                   </div>
                 )}
               </div>
-              <div className="text-sm text-gray-200">
-                <p><strong>Type:</strong> {img.type || 'Unknown'}</p>
-                <p><strong>URL:</strong> <a 
-                  href={img.url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-blue-400 hover:underline block truncate"
-                >
-                  {img.url}
-                </a></p>
-                <p><strong>Region:</strong> {img.region || 'Unknown'}</p>
-                <p><strong>Resolution:</strong> {img.resolution || 'Unknown'}</p>
+              <div className="text-sm text-gray-200 space-y-1">
+                <p className="flex items-center"><span className="font-semibold text-gray-400 w-24 inline-block"><FiTag className="inline mr-1" /> Type:</span> {img.type || 'Unknown'}</p>
+                <p className="flex items-start">
+                  <span className="font-semibold text-gray-400 w-24 inline-block pt-0.5"><FiExternalLink className="inline mr-1" /> URL:</span> 
+                  <a 
+                    href={img.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:underline block truncate"
+                  >
+                    {img.url}
+                  </a>
+                </p>
+                <p className="flex items-center"><span className="font-semibold text-gray-400 w-24 inline-block"><FiMapPin className="inline mr-1" /> Region:</span> {img.region || 'Unknown'}</p>
+                <p className="flex items-center"><span className="font-semibold text-gray-400 w-24 inline-block"><FiMaximize2 className="inline mr-1" /> Size:</span> {img.resolution || 'Unknown'}</p>
               </div>
             </div>
           ))}
@@ -221,27 +227,33 @@ export default function TestScreenScraperPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8 text-white">ScreenScraper API Test</h1>
+    <div className="container mx-auto px-4 py-8 max-w-5xl text-gray-200">
+      <h1 className="text-3xl font-bold mb-6 text-white flex items-center">
+        <FiServer className="mr-3 text-accent" /> ScreenScraper API Test
+      </h1>
       
       <div className="mb-8 p-6 bg-gray-800 rounded-lg shadow-md border border-gray-700">
+        <h2 className="text-xl font-bold mb-4 text-white flex items-center">
+          <FiSearch className="mr-2 text-blue-400" /> Search Parameters
+        </h2>
+        
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
-              Game Name
+            <label className="block text-sm font-medium text-gray-300 mb-1 flex items-center">
+              <FiInfo className="mr-1" /> Game Name
             </label>
             <input
               type="text"
               value={gameName}
               onChange={(e) => setGameName(e.target.value)}
-              className="w-full p-2 border border-gray-700 rounded bg-gray-700 text-white"
+              className="w-full p-3 border border-gray-700 rounded bg-gray-900 text-white focus:outline-none focus:ring-2 focus:ring-accent"
               placeholder="Enter game name"
             />
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
-              Platform
+            <label className="block text-sm font-medium text-gray-300 mb-1 flex items-center">
+              <FiMonitor className="mr-1" /> Platform
             </label>
             <div className="flex items-center space-x-2">
               <select
@@ -250,7 +262,7 @@ export default function TestScreenScraperPage() {
                   setPlatform(e.target.value);
                   setDirectPlatformId(null); // Clear direct platform ID when changing dropdown
                 }}
-                className="w-full p-2 border border-gray-700 rounded bg-gray-700 text-white"
+                className="w-full p-3 border border-gray-700 rounded bg-gray-900 text-white focus:outline-none focus:ring-2 focus:ring-accent"
                 disabled={directPlatformId !== null}
               >
                 {platforms.map((p) => (
@@ -262,28 +274,28 @@ export default function TestScreenScraperPage() {
               {directPlatformId !== null && (
                 <button
                   onClick={() => setDirectPlatformId(null)}
-                  className="bg-red-600 text-white py-2 px-3 rounded hover:bg-red-700"
+                  className="bg-red-600 text-white p-3 rounded hover:bg-red-700 flex items-center justify-center"
                   title="Clear direct platform ID"
                 >
-                  ✕
+                  <FiX />
                 </button>
               )}
             </div>
             {directPlatformId !== null && (
-              <div className="mt-1 text-xs text-yellow-400">
-                Using direct platform ID: {directPlatformId}
+              <div className="mt-1 text-xs text-yellow-400 flex items-center">
+                <FiInfo className="mr-1" /> Using direct platform ID: {directPlatformId}
               </div>
             )}
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
-              Image Type
+            <label className="block text-sm font-medium text-gray-300 mb-1 flex items-center">
+              <FiFilter className="mr-1" /> Image Type
             </label>
             <select
               value={selectedImageType}
               onChange={(e) => setSelectedImageType(e.target.value)}
-              className="w-full p-2 border border-gray-700 rounded bg-gray-700 text-white"
+              className="w-full p-3 border border-gray-700 rounded bg-gray-900 text-white focus:outline-none focus:ring-2 focus:ring-accent"
             >
               {imageTypes.map((type) => (
                 <option key={type.id} value={type.id}>
@@ -298,48 +310,78 @@ export default function TestScreenScraperPage() {
           <button
             onClick={handleSearch}
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:bg-blue-300"
+            className="w-full bg-blue-600 text-white py-3 px-4 rounded hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center"
           >
-            {loading ? 'Searching...' : 'Search Game'}
+            {loading ? (
+              <span className="flex items-center">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Searching...
+              </span>
+            ) : (
+              <span className="flex items-center">
+                <FiSearch className="mr-2" /> Search Game
+              </span>
+            )}
           </button>
           
           <button
             onClick={fetchFullPlatformList}
             disabled={loadingPlatforms}
-            className="w-full bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700 disabled:bg-green-300"
+            className="w-full bg-green-600 text-white py-3 px-4 rounded hover:bg-green-700 disabled:opacity-50 flex items-center justify-center"
           >
-            {loadingPlatforms ? 'Loading Platforms...' : 'Show Full Platform List'}
+            {loadingPlatforms ? (
+              <span className="flex items-center">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Loading Platforms...
+              </span>
+            ) : (
+              <span className="flex items-center">
+                <FiList className="mr-2" /> Show Full Platform List
+              </span>
+            )}
           </button>
         </div>
       </div>
       
       {error && (
-        <div className="mb-8 p-4 bg-red-900/50 text-red-200 rounded-lg border border-red-700">
-          {error}
+        <div className="mb-8 p-4 bg-red-900/30 text-red-200 rounded-lg border border-red-700 flex items-center">
+          <FiAlertCircle className="mr-2 text-red-400 flex-shrink-0" />
+          <span>{error}</span>
         </div>
       )}
       
       {fullPlatformList && (
         <div className="mb-8 bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700">
-          <h2 className="text-2xl font-bold mb-4 text-white">
-            Platform List from ScreenScraper ({filteredPlatforms.length} platforms)
+          <h2 className="text-2xl font-bold mb-4 text-white flex items-center">
+            <FiList className="mr-2 text-blue-400" /> Platform List ({filteredPlatforms.length} platforms)
           </h2>
           
           <div className="mb-4">
-            <input
-              type="text"
-              placeholder="Search platforms..."
-              className="w-full p-2 border border-gray-700 rounded bg-gray-700 text-white"
-              onChange={(e) => {
-                const filter = e.target.value.toLowerCase();
-                const filtered = fullPlatformList.filter(p => 
-                  p.name.toLowerCase().includes(filter) || 
-                  p.id.toLowerCase().includes(filter) ||
-                  String(p.platformId).includes(filter)
-                );
-                setFilteredPlatforms(filtered);
-              }}
-            />
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <FiSearch className="text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search platforms..."
+                className="w-full pl-10 p-3 border border-gray-700 rounded bg-gray-900 text-white focus:outline-none focus:ring-2 focus:ring-accent"
+                onChange={(e) => {
+                  const filter = e.target.value.toLowerCase();
+                  const filtered = fullPlatformList.filter(p => 
+                    p.name.toLowerCase().includes(filter) || 
+                    p.id.toLowerCase().includes(filter) ||
+                    String(p.platformId).includes(filter)
+                  );
+                  setFilteredPlatforms(filtered);
+                }}
+              />
+            </div>
           </div>
           
           <div className="overflow-x-auto">
@@ -384,7 +426,9 @@ export default function TestScreenScraperPage() {
       
       {rawResponse && (
         <div className="mb-8 bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700">
-          <h2 className="text-2xl font-bold mb-4 text-white">Raw API Response</h2>
+          <h2 className="text-2xl font-bold mb-4 text-white flex items-center">
+            <FiServer className="mr-2 text-blue-400" /> Raw API Response
+          </h2>
           <pre className="bg-gray-900 p-4 rounded overflow-auto max-h-96 text-sm text-gray-300 border border-gray-700">
             {JSON.stringify(rawResponse, null, 2)}
           </pre>
@@ -394,41 +438,53 @@ export default function TestScreenScraperPage() {
       {data && data.gameData && (
         <div className="space-y-8">
           {data.gameData.warning && (
-            <div className="bg-yellow-800 text-yellow-200 p-4 rounded-lg border border-yellow-600">
-              <strong>Warning:</strong> {data.gameData.warning}
+            <div className="bg-yellow-800/30 text-yellow-200 p-4 rounded-lg border border-yellow-600 flex items-start">
+              <FiAlertCircle className="mr-2 text-yellow-400 flex-shrink-0 mt-1" />
+              <div>
+                <strong className="font-bold">Warning:</strong> {data.gameData.warning}
+              </div>
             </div>
           )}
           
           <div className="bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700">
-            <h2 className="text-2xl font-bold mb-4 text-white">Game Information</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-200">
-              <div>
-                <p><strong>Name:</strong> {data.gameData.name}</p>
-                <p><strong>ID:</strong> {data.gameData.id}</p>
-                <p><strong>System:</strong> {data.gameData.system}</p>
-                <p><strong>Region:</strong> {data.gameData.region}</p>
-                <p><strong>Publisher:</strong> {data.gameData.publisher}</p>
-                <p><strong>Developer:</strong> {data.gameData.developer}</p>
-                <p><strong>Players:</strong> {data.gameData.players}</p>
-                <p><strong>Rating:</strong> {data.gameData.rating}</p>
-                <p><strong>Release Date:</strong> {data.gameData.releaseDate}</p>
+            <h2 className="text-2xl font-bold mb-4 text-white flex items-center">
+              <FiInfo className="mr-2 text-blue-400" /> Game Information
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-gray-200">
+              <div className="space-y-2">
+                <p className="flex items-center"><span className="font-semibold text-gray-400 w-28 inline-block">Name:</span> {data.gameData.name}</p>
+                <p className="flex items-center"><span className="font-semibold text-gray-400 w-28 inline-block">ID:</span> {data.gameData.id}</p>
+                <p className="flex items-center"><span className="font-semibold text-gray-400 w-28 inline-block">System:</span> {data.gameData.system}</p>
+                <p className="flex items-center"><span className="font-semibold text-gray-400 w-28 inline-block">Region:</span> {data.gameData.region}</p>
+                <p className="flex items-center"><span className="font-semibold text-gray-400 w-28 inline-block">Publisher:</span> {data.gameData.publisher}</p>
+                <p className="flex items-center"><span className="font-semibold text-gray-400 w-28 inline-block">Developer:</span> {data.gameData.developer}</p>
+                <p className="flex items-center"><span className="font-semibold text-gray-400 w-28 inline-block">Players:</span> {data.gameData.players}</p>
+                <p className="flex items-center"><span className="font-semibold text-gray-400 w-28 inline-block">Rating:</span> {data.gameData.rating}</p>
+                <p className="flex items-center"><span className="font-semibold text-gray-400 w-28 inline-block">Release Date:</span> {data.gameData.releaseDate}</p>
               </div>
-              <div>
-                <p><strong>Genre:</strong> {data.gameData.genre}</p>
-                <p><strong>Perspective:</strong> {data.gameData.perspective}</p>
-                <p><strong>Description:</strong> {data.gameData.description}</p>
+              <div className="space-y-2">
+                <p className="flex items-center"><span className="font-semibold text-gray-400 w-28 inline-block">Genre:</span> {data.gameData.genre}</p>
+                <p className="flex items-center"><span className="font-semibold text-gray-400 w-28 inline-block">Perspective:</span> {data.gameData.perspective}</p>
+                <div className="flex items-start">
+                  <span className="font-semibold text-gray-400 w-28 inline-block mt-1">Description:</span> 
+                  <p className="text-gray-300">{data.gameData.description}</p>
+                </div>
               </div>
             </div>
           </div>
           
           {/* Display direct URLs for box art, title screen, and screenshots */}
           <div className="bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700">
-            <h2 className="text-2xl font-bold mb-4 text-white">Quick Image Links</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <h2 className="text-2xl font-bold mb-4 text-white flex items-center">
+              <FiImage className="mr-2 text-blue-400" /> Quick Image Links
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {data.gameData.boxUrl && (
-                <div>
-                  <h3 className="text-lg font-semibold mb-2 text-white">Box Art</h3>
-                  <div className="relative h-48 mb-2 border border-gray-700">
+                <div className="bg-gray-900 p-4 rounded-lg border border-gray-700">
+                  <h3 className="text-lg font-semibold mb-3 text-white flex items-center">
+                    <FiImage className="mr-2 text-blue-400" /> Box Art
+                  </h3>
+                  <div className="relative h-48 mb-3 border border-gray-700 rounded overflow-hidden bg-gray-950">
                     <Image 
                       src={data.gameData.boxUrl} 
                       alt="Box Art"
@@ -439,25 +495,27 @@ export default function TestScreenScraperPage() {
                         e.target.nextSibling.style.display = 'flex';
                       }}
                     />
-                    <div className="hidden items-center justify-center h-full text-red-500 bg-gray-800">
-                      Image failed to load
+                    <div className="hidden items-center justify-center h-full text-red-400 bg-gray-900">
+                      <FiAlertCircle className="mr-2" /> Image failed to load
                     </div>
                   </div>
                   <a 
                     href={data.gameData.boxUrl} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="text-blue-400 hover:underline text-sm block truncate"
+                    className="text-blue-400 hover:underline text-sm block truncate flex items-center"
                   >
-                    {data.gameData.boxUrl}
+                    <FiExternalLink className="mr-1 flex-shrink-0" /> {data.gameData.boxUrl}
                   </a>
                 </div>
               )}
               
               {data.gameData.titleUrl && (
-                <div>
-                  <h3 className="text-lg font-semibold mb-2 text-white">Title Screen</h3>
-                  <div className="relative h-48 mb-2 border border-gray-700">
+                <div className="bg-gray-900 p-4 rounded-lg border border-gray-700">
+                  <h3 className="text-lg font-semibold mb-3 text-white flex items-center">
+                    <FiImage className="mr-2 text-blue-400" /> Title Screen
+                  </h3>
+                  <div className="relative h-48 mb-3 border border-gray-700 rounded overflow-hidden bg-gray-950">
                     <Image 
                       src={data.gameData.titleUrl} 
                       alt="Title Screen"
@@ -468,25 +526,27 @@ export default function TestScreenScraperPage() {
                         e.target.nextSibling.style.display = 'flex';
                       }}
                     />
-                    <div className="hidden items-center justify-center h-full text-red-500 bg-gray-800">
-                      Image failed to load
+                    <div className="hidden items-center justify-center h-full text-red-400 bg-gray-900">
+                      <FiAlertCircle className="mr-2" /> Image failed to load
                     </div>
                   </div>
                   <a 
                     href={data.gameData.titleUrl} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="text-blue-400 hover:underline text-sm block truncate"
+                    className="text-blue-400 hover:underline text-sm block truncate flex items-center"
                   >
-                    {data.gameData.titleUrl}
+                    <FiExternalLink className="mr-1 flex-shrink-0" /> {data.gameData.titleUrl}
                   </a>
                 </div>
               )}
               
               {data.gameData.screenshotUrl && (
-                <div>
-                  <h3 className="text-lg font-semibold mb-2 text-white">Screenshot</h3>
-                  <div className="relative h-48 mb-2 border border-gray-700">
+                <div className="bg-gray-900 p-4 rounded-lg border border-gray-700">
+                  <h3 className="text-lg font-semibold mb-3 text-white flex items-center">
+                    <FiImage className="mr-2 text-blue-400" /> Screenshot
+                  </h3>
+                  <div className="relative h-48 mb-3 border border-gray-700 rounded overflow-hidden bg-gray-950">
                     <Image 
                       src={data.gameData.screenshotUrl} 
                       alt="Screenshot"
@@ -497,42 +557,26 @@ export default function TestScreenScraperPage() {
                         e.target.nextSibling.style.display = 'flex';
                       }}
                     />
-                    <div className="hidden items-center justify-center h-full text-red-500 bg-gray-800">
-                      Image failed to load
+                    <div className="hidden items-center justify-center h-full text-red-400 bg-gray-900">
+                      <FiAlertCircle className="mr-2" /> Image failed to load
                     </div>
                   </div>
                   <a 
                     href={data.gameData.screenshotUrl} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="text-blue-400 hover:underline text-sm block truncate"
+                    className="text-blue-400 hover:underline text-sm block truncate flex items-center"
                   >
-                    {data.gameData.screenshotUrl}
+                    <FiExternalLink className="mr-1 flex-shrink-0" /> {data.gameData.screenshotUrl}
                   </a>
                 </div>
               )}
             </div>
           </div>
-
-          {/* Display all images from the API response */}
-          {data.gameData.images && data.gameData.images.length > 0 && (
-            <div className="bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700">
-              {selectedImageType === 'all' ? (
-                <h2 className="text-2xl font-bold mb-4 text-white">Images ({data.gameData.images.length} found)</h2>
-              ) : (
-                <h2 className="text-2xl font-bold mb-4 text-white">
-                  {imageTypes.find(type => type.id === selectedImageType)?.label || 'Images'} (
-                    {data.gameData.images.filter(img => 
-                      (img.type || '').toLowerCase().includes(selectedImageType)
-                    ).length} found)
-                </h2>
-              )}
-              {renderImageSection(
-                selectedImageType === 'all' ? 'All Images' : imageTypes.find(type => type.id === selectedImageType)?.label, 
-                data.gameData.images
-              )}
-            </div>
-          )}
+                    
+          {/* Image sections */}
+          {renderImageSection('All Game Images', data.gameData.images)}
+          
         </div>
       )}
     </div>
