@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { PhotoIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { PhotoIcon, MagnifyingGlassIcon, ComputerDesktopIcon } from '@heroicons/react/24/outline';
 import Image from 'next/image';
 
 export default function GameForm({ categories = [] }) {
@@ -12,9 +12,14 @@ export default function GameForm({ categories = [] }) {
     title: '',
     description: '',
     image: '',
-    imageSource: 'custom', // 'custom', 'tgdb', or 'screenscraper'
+    imageSource: 'custom', // 'custom', 'local', 'auto'
+    localImage: null, // For local image file
+    localImageName: '',
     apiImageUrl: '',
     gameLink: '',
+    localGame: false, // Whether this is a local game
+    localGameFile: null, // For local ROM file
+    localGameFileName: '',
     core: '',
     region: '', // Empty string instead of 'us' default
     category: { id: '', title: '' }
@@ -24,7 +29,6 @@ export default function GameForm({ categories = [] }) {
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
   const [previewImage, setPreviewImage] = useState('');
-  const [selectedApiSource, setSelectedApiSource] = useState('wikimedia');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -32,48 +36,190 @@ export default function GameForm({ categories = [] }) {
     setError('');
 
     try {
-      // If using API image, update the image field to the special format
-      const finalFormData = {
-        ...formData,
-        published: true
-      };
+      // Special case for app-local images - they need to be uploaded to the server's /public/game/ directory
+      if (formData.imageSource === 'local' && formData.localImage) {
+        // Create a FormData object just for the image upload
+        const imageFormData = new FormData();
+        imageFormData.append('file', formData.localImage);
+        
+        // Upload the image file to our server
+        console.log(`[GameForm] Uploading local image: ${formData.localImage.name}`);
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: imageFormData,
+        });
 
-      if (formData.imageSource === 'tgdb' && formData.apiImageUrl) {
-        // Format: "tgdb:GameTitle:core"
-        finalFormData.image = `tgdb:${encodeURIComponent(formData.title)}:${formData.core}`;
-      } else if (formData.imageSource === 'screenscraper' && formData.apiImageUrl) {
-        // Format: "screenscraper:GameTitle:core"
-        finalFormData.image = `screenscraper:${encodeURIComponent(formData.title)}:${formData.core}`;
+        if (!uploadResponse.ok) {
+          const uploadData = await uploadResponse.json();
+          throw new Error(uploadData.error || 'Failed to upload image');
+        }
+
+        const uploadResult = await uploadResponse.json();
+        
+        // Update the image field with just the filename - it will be stored in the /game/ directory
+        formData.image = uploadResult.filename;
+        console.log(`[GameForm] Image uploaded successfully: ${formData.image}`);
       }
 
-      const response = await fetch('/api/games', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(finalFormData),
-      });
+      // Prepare the data
+      let gameData = {
+        title: formData.title,
+        description: formData.description,
+        core: formData.core,
+        region: formData.region,
+        category: formData.category
+      };
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to add game');
+      // Handle image based on source
+      if (formData.imageSource === 'local' && formData.localImage) {
+        // For local images, we use the uploaded filename from above
+        gameData.image = formData.image;
+      } else if (formData.imageSource === 'custom') {
+        gameData.image = formData.image;
+      } else if (formData.imageSource === 'auto') {
+        // Let the server use wikimedia to find an image
+        gameData.image = `wikimedia:${encodeURIComponent(formData.title)}:${formData.core}`;
+      }
+      
+      // Handle game file or link
+      if (formData.localGame && formData.localGameFileName) {
+        // Use the file:// URL directly
+        gameData.gameLink = formData.localGameFileName;
+      } else {
+        gameData.gameLink = formData.gameLink;
+      }
+
+      // Handle local (offline) games differently
+      if (formData.localGame) {
+        // For offline games, we'll use the offline API endpoint
+        const response = await fetch('/api/games/offline', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(gameData),
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || 'Failed to add offline game');
+        }
+
+        const offlineGameData = await response.json();
+        
+        // Save to localStorage under the core name
+        try {
+          const coreKey = `games_${formData.core}`;
+          const existingGames = JSON.parse(localStorage.getItem(coreKey) || '[]');
+          
+          // Add the new game to the list
+          existingGames.push(offlineGameData);
+          
+          // Save back to localStorage
+          localStorage.setItem(coreKey, JSON.stringify(existingGames));
+          
+          console.log(`[GameForm] Offline game "${offlineGameData.title}" saved to localStorage under ${coreKey}`);
+        } catch (storageError) {
+          console.error('[GameForm] Error saving to localStorage:', storageError);
+          throw new Error('Failed to save offline game to localStorage');
+        }
+      } else {
+        // For online games, use the regular API endpoint with FormData
+        const finalFormData = new FormData();
+        
+        // Add basic text fields
+        finalFormData.append('title', formData.title);
+        finalFormData.append('description', formData.description);
+        finalFormData.append('core', formData.core);
+        finalFormData.append('region', formData.region);
+        finalFormData.append('categoryId', formData.category.id);
+        finalFormData.append('categoryTitle', formData.category.title);
+        finalFormData.append('published', 'true');
+        
+        // Handle image based on source
+        if (formData.imageSource === 'local' && formData.localImage) {
+          finalFormData.append('coverImage', formData.localImage);
+        } else if (formData.imageSource === 'custom') {
+          finalFormData.append('imageUrl', formData.image);
+        } else if (formData.imageSource === 'auto') {
+          // Let the server use wikimedia to find an image
+          finalFormData.append('imageUrl', `wikimedia:${encodeURIComponent(formData.title)}:${formData.core}`);
+        }
+        
+        // Add game link
+        finalFormData.append('gameLink', formData.gameLink);
+
+        const response = await fetch('/api/games', {
+          method: 'POST',
+          body: finalFormData,
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || 'Failed to add game');
+        }
       }
 
       router.push('/');
       router.refresh();
     } catch (error) {
       setError(error.message);
+      console.error('[GameForm] Error:', error);
     } finally {
       setLoading(false);
     }
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    const { name, value, type, checked } = e.target;
+    
+    if (type === 'checkbox') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: checked
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const { name, files } = e.target;
+    
+    if (files && files[0]) {
+      if (name === 'localImage') {
+        // For image file
+        const file = files[0];
+        
+        // Create a temporary object URL to preview the image
+        const objectUrl = URL.createObjectURL(file);
+        
+        // Store the file object and set image source to 'local'
+        setFormData(prev => ({
+          ...prev,
+          localImage: file,
+          localImageName: file.name,
+          imageSource: 'local'
+        }));
+        
+        // Use the object URL for preview
+        setPreviewImage(objectUrl);
+        console.log(`[GameForm] Created preview for local image: ${objectUrl}`);
+      } else if (name === 'localGameFile') {
+        // For ROM file
+        const file = files[0];
+        
+        setFormData(prev => ({
+          ...prev,
+          localGameFile: file,
+          localGameFileName: file.name,
+          localGame: true // Auto-select local game when file is chosen
+        }));
+      }
+    }
   };
 
   const handleCategoryChange = (e) => {
@@ -103,13 +249,8 @@ export default function GameForm({ categories = [] }) {
     setSearchError('');
 
     try {
-      if (selectedApiSource === 'wikimedia') {
-        // Use direct Wikimedia extraction like in GameImage
-        await searchWikimediaImage();
-      } else {
-        console.log(`[GameForm] ${selectedApiSource} API not directly implemented yet, using Wikimedia instead`);
-        await searchWikimediaImage();
-      }
+      // Use Wikimedia image search
+      await searchWikimediaImage();
     } catch (err) {
       console.error('[GameForm] Error fetching cover:', err);
       setSearchError(err.message);
@@ -218,17 +359,17 @@ export default function GameForm({ categories = [] }) {
     const htmlContent = contentData.parse.text['*'];
     console.log(`[GameForm] Received HTML content (${htmlContent.length} chars)`);
     
-    // Extract the image from the HTML
-    let imageUrl = extractImageFromHtml(htmlContent);
+    // Now extract the image from the HTML
+    let extractedImageUrl = extractImageFromHtml(htmlContent);
     
-    if (imageUrl) {
-      console.log(`[GameForm] Successfully extracted image: ${imageUrl}`);
+    if (extractedImageUrl) {
+      console.log(`[GameForm] Successfully extracted image: ${extractedImageUrl}`);
+      setPreviewImage(extractedImageUrl);
       setFormData(prev => ({
         ...prev,
-        apiImageUrl: imageUrl,
-        imageSource: 'wikimedia'
+        apiImageUrl: extractedImageUrl,
+        imageSource: 'auto'
       }));
-      setPreviewImage(imageUrl);
       return;
     }
     
@@ -236,24 +377,26 @@ export default function GameForm({ categories = [] }) {
     console.log(`[GameForm] No image in HTML, trying thumbnail API for: ${exactTitle}`);
     const thumbnailResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(exactTitle)}&prop=pageimages&format=json&pithumbsize=500&origin=*`);
     
-    if (thumbnailResponse.ok) {
-      const thumbnailData = await thumbnailResponse.json();
-      const pages = thumbnailData.query?.pages;
+    if (!thumbnailResponse.ok) {
+      throw new Error(`Thumbnail API failed: ${thumbnailResponse.status}`);
+    }
+    
+    const thumbnailData = await thumbnailResponse.json();
+    const pages = thumbnailData.query?.pages;
+    
+    if (pages) {
+      const pageId = Object.keys(pages)[0];
+      const thumbnail = pages[pageId]?.thumbnail?.source;
       
-      if (pages) {
-        const pageId = Object.keys(pages)[0];
-        const thumbnail = pages[pageId]?.thumbnail?.source;
-        
-        if (thumbnail) {
-          console.log(`[GameForm] Found thumbnail: ${thumbnail}`);
-          setFormData(prev => ({
-            ...prev,
-            apiImageUrl: thumbnail,
-            imageSource: 'wikimedia'
-          }));
-          setPreviewImage(thumbnail);
-          return;
-        }
+      if (thumbnail) {
+        console.log(`[GameForm] Found thumbnail: ${thumbnail}`);
+        setPreviewImage(thumbnail);
+        setFormData(prev => ({
+          ...prev,
+          apiImageUrl: thumbnail,
+          imageSource: 'auto'
+        }));
+        return;
       }
     }
     
@@ -266,32 +409,34 @@ export default function GameForm({ categories = [] }) {
       imageSource: source
     }));
     
-    // Update preview based on selected source
-    if (source === 'tgdb' || source === 'screenscraper') {
-      setPreviewImage(formData.apiImageUrl);
-    } else {
-      setPreviewImage(formData.image || '');
+    // Clear preview if switching to custom URL
+    if (source === 'custom') {
+      setPreviewImage('');
     }
   };
 
-  // When title or core changes, reset the API image
-  useEffect(() => {
-    if (formData.imageSource !== 'custom') {
-      setFormData(prev => ({
-        ...prev,
-        apiImageUrl: ''
-      }));
-      setPreviewImage('');
-    }
-  }, [formData.title, formData.core]);
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {error && (
-        <div className="bg-red-500/10 border border-red-500 text-red-500 p-3 rounded">
-          {error}
-        </div>
-      )}
+    <form onSubmit={handleSubmit} className="space-y-6 pb-12">
+      {error && <p className="text-red-500">{error}</p>}
+      
+      {/* Local Game Toggle */}
+      <div className="rounded bg-gray-800 p-4 border border-accent-secondary">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            name="localGame"
+            checked={formData.localGame}
+            onChange={handleChange}
+            className="w-4 h-4 accent-yellow-500"
+          />
+          <ComputerDesktopIcon className="w-5 h-5 text-yellow-500" />
+          <span className="font-medium">This is a local game (from my computer)</span>
+        </label>
+        <p className="text-xs text-gray-400 mt-2 ml-6">
+          Local games will be marked with a badge and no files will be uploaded to the server.
+          You will need to manage the ROM files and images yourself.
+        </p>
+      </div>
 
       <div>
         <label className="block mb-2">Game Title *</label>
@@ -335,30 +480,30 @@ export default function GameForm({ categories = [] }) {
             </button>
             <button
               type="button"
-              onClick={() => handleImageSourceChange('tgdb')}
+              onClick={() => handleImageSourceChange('local')}
               className={`px-2 py-1 rounded ${
-                formData.imageSource === 'tgdb'
+                formData.imageSource === 'local'
                   ? 'bg-accent text-black'
                   : 'bg-primary border border-accent'
               }`}
             >
-              TheGamesDB
+              Local File
             </button>
             <button
               type="button"
-              onClick={() => handleImageSourceChange('screenscraper')}
+              onClick={() => handleImageSourceChange('auto')}
               className={`px-2 py-1 rounded ${
-                formData.imageSource === 'screenscraper'
+                formData.imageSource === 'auto'
                   ? 'bg-accent text-black'
                   : 'bg-primary border border-accent'
               }`}
             >
-              ScreenScraper
+              Auto Search
             </button>
           </div>
         </label>
 
-        {formData.imageSource === 'custom' ? (
+        {formData.imageSource === 'custom' && (
           <div>
             <input
               type="text"
@@ -369,22 +514,34 @@ export default function GameForm({ categories = [] }) {
               placeholder="URL to game cover image"
             />
           </div>
-        ) : (
+        )}
+        
+        {formData.imageSource === 'local' && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <label className="flex items-center justify-center w-full h-12 px-4 border border-dashed border-gray-500 rounded-lg bg-gray-800 hover:bg-gray-700 cursor-pointer transition-colors">
+                <PhotoIcon className="w-5 h-5 mr-2" />
+                <span className="text-sm">
+                  {formData.localImageName ? formData.localImageName : 'Select image file'}
+                </span>
+                <input
+                  type="file"
+                  name="localImage"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  accept="image/*"
+                />
+              </label>
+            </div>
+            <p className="text-xs text-gray-400">
+              Select a local image file for the game cover. Recommended size: 264x352 pixels.
+            </p>
+          </div>
+        )}
+        
+        {formData.imageSource === 'auto' && (
           <div className="space-y-4">
             <div className="flex flex-col gap-2">
-              <div className="flex gap-2 items-center mb-2">
-                <label className="block text-sm">API Source:</label>
-                <select
-                  value={selectedApiSource}
-                  onChange={(e) => setSelectedApiSource(e.target.value)}
-                  className="p-2 rounded bg-primary border border-accent-secondary"
-                >
-                  <option value="wikimedia">Wikimedia (recommended)</option>
-                  <option value="tgdb">TheGamesDB (coming soon)</option>
-                  <option value="screenscraper">ScreenScraper (coming soon)</option>
-                </select>
-              </div>
-              
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -407,8 +564,7 @@ export default function GameForm({ categories = [] }) {
             
             {formData.apiImageUrl && (
               <p className="text-xs text-accent">
-                Using {selectedApiSource === 'tgdb' ? 'TheGamesDB' : 'ScreenScraper'} image. 
-                No bandwidth used on your server! Image will be cached in the browser.
+                Using Wikimedia image. The image will be cached in your browser.
               </p>
             )}
           </div>
@@ -464,18 +620,43 @@ export default function GameForm({ categories = [] }) {
         </div>
       </div>
 
-      <div>
-        <label className="block mb-2">Game ROM URL *</label>
-        <input
-          type="text"
-          name="gameLink"
-          value={formData.gameLink}
-          onChange={handleChange}
-          className="w-full p-3 rounded bg-primary border border-accent-secondary"
-          required
-          placeholder="URL to game ROM file"
-        />
-      </div>
+      {/* Game File Section - Show different UI based on localGame toggle */}
+      {formData.localGame ? (
+        <div>
+          <label className="block mb-2">Local Game File *</label>
+          <div className="flex flex-col gap-2">
+            <label className="flex items-center justify-center w-full h-12 px-4 border border-dashed border-gray-500 rounded-lg bg-gray-800 hover:bg-gray-700 cursor-pointer transition-colors">
+              <ComputerDesktopIcon className="w-5 h-5 mr-2" />
+              <span className="text-sm">
+                {formData.localGameFileName ? formData.localGameFileName : 'Select ROM file'}
+              </span>
+              <input
+                type="file"
+                name="localGameFile"
+                onChange={handleFileChange}
+                className="hidden"
+                required={formData.localGame}
+              />
+            </label>
+            <p className="text-xs text-gray-400">
+              Select your local ROM file. This will be referenced but not uploaded.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <label className="block mb-2">Game ROM URL *</label>
+          <input
+            type="text"
+            name="gameLink"
+            value={formData.gameLink}
+            onChange={handleChange}
+            className="w-full p-3 rounded bg-primary border border-accent-secondary"
+            required={!formData.localGame}
+            placeholder="URL to game ROM file"
+          />
+        </div>
+      )}
 
       <div>
         <label className="block mb-2">Emulator Core *</label>
@@ -485,6 +666,7 @@ export default function GameForm({ categories = [] }) {
             value={formData.core}
             onChange={handleChange}
             className="w-1/2 p-3 rounded bg-primary border border-accent-secondary"
+            required
           >
             <option value="">Select a core</option>
             
@@ -501,20 +683,30 @@ export default function GameForm({ categories = [] }) {
             
             {/* Sega Systems */}
             <optgroup label="Sega">
-              <option value="segaMD">Sega Genesis/Mega Drive</option>
+              <option value="segaMS">Master System</option>
+              <option value="segaMD">Mega Drive (Genesis)</option>
               <option value="segaCD">Sega CD</option>
-              <option value="segaSaturn">Sega Saturn</option>
+              <option value="segaGG">Game Gear</option>
+              <option value="sega32x">32X</option>
+              <option value="saturn">Saturn</option>
             </optgroup>
             
             {/* Sony Systems */}
             <optgroup label="Sony">
               <option value="psx">PlayStation</option>
-              <option value="psp">PlayStation Portable</option>
+              <option value="psp">PSP</option>
             </optgroup>
             
             {/* Other Systems */}
             <optgroup label="Other">
               <option value="arcade">Arcade</option>
+              <option value="atari2600">Atari 2600</option>
+              <option value="lynx">Atari Lynx</option>
+              <option value="pc">DOS</option>
+              <option value="3do">3DO</option>
+              <option value="jaguar">Jaguar</option>
+              <option value="neogeo">Neo Geo</option>
+              <option value="coleco">ColecoVision</option>
             </optgroup>
           </select>
           <input

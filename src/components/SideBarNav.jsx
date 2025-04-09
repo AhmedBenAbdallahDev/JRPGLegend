@@ -4,8 +4,9 @@ import { HomeIcon, CubeIcon, DeviceTabletIcon, PhotoIcon, ChevronDownIcon, Chevr
 import Link from 'next/link';
 import { usePathname } from "next/navigation";
 import { SiPlaystation, SiSega } from 'react-icons/si';
-import { FaGamepad, FaMobileAlt, FaDice } from 'react-icons/fa';
+import { FaGamepad, FaMobileAlt, FaDice, FaLaptop } from 'react-icons/fa';
 import { FiSettings } from 'react-icons/fi';
+import { getOfflineCategoriesForMenu } from "@/lib/offlineGames";
 
 export default function SideBarNav({ categoryMenu }) {
   const pathname = usePathname();
@@ -16,7 +17,9 @@ export default function SideBarNav({ categoryMenu }) {
   const [segaOpen, setSegaOpen] = useState(true);
   const [sonyOpen, setSonyOpen] = useState(true);
   const [otherOpen, setOtherOpen] = useState(true);
+  const [offlineOpen, setOfflineOpen] = useState(true);
   const [isClient, setIsClient] = useState(false);
+  const [offlineCategories, setOfflineCategories] = useState([]);
   
   // Set isClient to true when component mounts
   useEffect(() => {
@@ -38,7 +41,12 @@ export default function SideBarNav({ categoryMenu }) {
         if (typeof states.segaOpen === 'boolean') setSegaOpen(states.segaOpen);
         if (typeof states.sonyOpen === 'boolean') setSonyOpen(states.sonyOpen);
         if (typeof states.otherOpen === 'boolean') setOtherOpen(states.otherOpen);
+        if (typeof states.offlineOpen === 'boolean') setOfflineOpen(states.offlineOpen);
       }
+      
+      // Load offline categories
+      const offlineItems = getOfflineCategoriesForMenu();
+      setOfflineCategories(offlineItems);
     } catch (error) {
       console.error("Error loading sidebar states:", error);
     }
@@ -54,13 +62,14 @@ export default function SideBarNav({ categoryMenu }) {
         nintendoOpen,
         segaOpen,
         sonyOpen,
-        otherOpen
+        otherOpen,
+        offlineOpen
       };
       localStorage.setItem('sidebarStates', JSON.stringify(states));
     } catch (error) {
       console.error("Error saving sidebar states:", error);
     }
-  }, [isClient, menuOpen, nintendoOpen, segaOpen, sonyOpen, otherOpen]);
+  }, [isClient, menuOpen, nintendoOpen, segaOpen, sonyOpen, otherOpen, offlineOpen]);
 
   const mainMenuItems = [
     {
@@ -94,6 +103,11 @@ export default function SideBarNav({ categoryMenu }) {
   const getCategoryIcon = (slug) => {
     const iconSize = 24;
     
+    // Check if this is an offline category
+    if (slug && slug.startsWith('offline-')) {
+      return <FaLaptop size={iconSize} />;
+    }
+    
     switch (slug) {
       case 'nes':
       case 'snes':
@@ -120,12 +134,13 @@ export default function SideBarNav({ categoryMenu }) {
 
   // Group categories by console type and combine GB/GBC
   const groupCategories = (categories) => {
-    if (!categories) return { nintendo: [], sega: [], sony: [], other: [] };
+    if (!categories) return { nintendo: [], sega: [], sony: [], other: [], offline: [] };
     
     const nintendo = [];
     const sega = [];
     const sony = [];
     const other = [];
+    const offline = [];
     
     // Define the order for each console group
     const nintendoOrder = ['nes', 'snes', 'n64', 'gb-gbc', 'gba', 'nds'];
@@ -141,11 +156,23 @@ export default function SideBarNav({ categoryMenu }) {
       });
     };
     
+    // Add offline categories from localStorage
+    if (isClient && offlineCategories.length > 0) {
+      offlineCategories.forEach(category => {
+        offline.push(category);
+      });
+    }
+    
     // Combine GB and GBC categories
     let gbCategory = null;
     let gbcCategory = null;
     
     categories.forEach(category => {
+      // Skip offline categories (they're already included)
+      if (category.isOffline) {
+        return;
+      }
+      
       if (category.slug === 'gb') {
         gbCategory = category;
       } else if (category.slug === 'gbc') {
@@ -192,7 +219,8 @@ export default function SideBarNav({ categoryMenu }) {
       nintendo: sortByOrder(nintendo, nintendoOrder),
       sega: sortByOrder(sega, segaOrder),
       sony: sortByOrder(sony, sonyOrder),
-      other
+      other,
+      offline
     };
   };
   
@@ -231,6 +259,41 @@ export default function SideBarNav({ categoryMenu }) {
           </div>
         )}
       </div>
+      
+      {/* Offline Games Section - Show only if there are offline categories */}
+      {groupedCategories.offline.length > 0 && (
+        <div className="mb-3">
+          <div 
+            className="flex items-center gap-2 p-1 text-sm font-medium cursor-pointer"
+            onClick={() => setOfflineOpen(!offlineOpen)}
+          >
+            <FaLaptop className="w-5 h-5 text-accent" />
+            <span>Offline Games</span>
+            {offlineOpen ? 
+              <ChevronDownIcon className="w-3 h-3 ml-auto" /> : 
+              <ChevronRightIcon className="w-3 h-3 ml-auto" />
+            }
+          </div>
+          
+          {offlineOpen && (
+            <div className="ml-4 mt-1 space-y-1">
+              {groupedCategories.offline.map((category) => (
+                <Link
+                  key={category.slug}
+                  href={`/category/${category.slug}`}
+                  className={`flex items-center gap-2 p-1 text-sm rounded-md hover:bg-accent/10 ${
+                    pathname === `/category/${category.slug}` ? "bg-accent/10 text-accent" : "text-gray-400"
+                  }`}
+                >
+                  {getCategoryIcon(category.slug)}
+                  <span>{category.title}</span>
+                  <span className="ml-auto text-xs text-gray-500">({category.games?.length || 0})</span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       
       {/* Nintendo Section */}
       <div className="mb-3">

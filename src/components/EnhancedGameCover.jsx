@@ -1,12 +1,15 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { HiPhotograph } from 'react-icons/hi';
 
 // Simple in-memory cache for cover URLs to reduce API calls during the session
 const coverCache = new Map();
 
 // Default image if nothing else is available
 const defaultImage = '/game/default-image.png';
+// Backup default if even that fails
+const hardcodedDefault = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMmQzMjM4Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyNCIgZmlsbD0iI2ZmYTUwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+R2FtZSBDb3ZlcjwvdGV4dD48L3N2Zz4=';
 
 // Function to get image from localStorage - moved outside component for first-render access
 const getFromLocalCache = (key) => {
@@ -29,15 +32,36 @@ export default function EnhancedGameCover({
   width = 300, 
   height = 200, 
   className = '',
-  source = 'wikimedia' // Default to wikimedia. Options: 'wikimedia', 'screenscraper', 'tgdb', or 'auto'
+  source = 'wikimedia', // Default to wikimedia. Options: 'wikimedia', 'screenscraper', 'tgdb', or 'auto'
+  hideInternalBadges = false
 }) {
   // Immediate image determination for first render
   const getInitialImage = () => {
     if (!game) return null;
     
+    // Handle file:// URLs directly
+    if (game.image && game.image.startsWith('file://')) {
+      console.log(`[EnhancedGameCover] Using direct file URL: ${game.image}`);
+      return game.image;
+    }
+    
+    // Handle our custom app-local:// protocol
+    if (game.image && game.image.startsWith('app-local://')) {
+      const filename = game.image.replace('app-local://', '');
+      const imagePath = `/game/${filename}`;
+      console.log(`[EnhancedGameCover] Using app-local image, loading from: ${imagePath}`);
+      return imagePath;
+    }
+    
     // 1. Direct local image path (fastest)
     if (game.image && !game.image.includes(':') && !game.image.includes('default-image')) {
-      return `/game/${game.image}`;
+      // Check if the image is an absolute path or relative to /game/
+      const imagePath = game.image.startsWith('/') 
+        ? game.image 
+        : `/game/${game.image}`;
+      
+      console.log(`[EnhancedGameCover] Using local image: ${imagePath}`);
+      return imagePath;
     }
     
     // 2. External URL (also fast)
@@ -66,7 +90,8 @@ export default function EnhancedGameCover({
   const [coverUrl, setCoverUrl] = useState(getInitialImage);
   const [loading, setLoading] = useState(!getInitialImage());
   const [error, setError] = useState(null);
-  const [isFromCache, setIsFromCache] = useState(!!getInitialImage() && !getInitialImage().startsWith('/game/'));
+  const [isFromCache, setIsFromCache] = useState(!!getInitialImage() && 
+    (getInitialImage()?.startsWith('http') || (getInitialImage()?.includes(':') && !getInitialImage()?.startsWith('file:'))));
 
   useEffect(() => {
     // Skip fetch if we already have an image from initialization
@@ -426,28 +451,46 @@ export default function EnhancedGameCover({
         </div>
       )}
       
-      {/* Use standard img tag for external URLs, Next.js Image for local paths */}
-      {coverUrl && (coverUrl.startsWith('http://') || coverUrl.startsWith('https://')) ? (
+      {/* Handle file:// URLs specially, but treat app-local:// like regular images */}
+      {coverUrl && coverUrl.startsWith('file://') ? (
+        <div className="w-full h-full bg-gray-800 flex items-center justify-center text-accent">
+          <div className="p-4 text-center">
+            <HiPhotograph className="w-12 h-12 mx-auto mb-2" />
+            <p className="text-sm">Local file:<br />{coverUrl.replace('file://', '')}</p>
+          </div>
+        </div>
+      ) : coverUrl && (coverUrl.startsWith('http://') || coverUrl.startsWith('https://')) ? (
         <img
           src={coverUrl}
           alt={game?.title || 'Game Cover'}
           className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-          onError={() => setCoverUrl('/game/default-image.png')}
+          onError={() => setCoverUrl(hardcodedDefault)}
           loading="eager"
-          fetchpriority="high"
+          fetchPriority="high"
+        />
+      ) : coverUrl && coverUrl.startsWith('/game/') ? (
+        // Use standard img tag for local files in the /game/ directory
+        <img
+          src={coverUrl}
+          alt={game?.title || 'Game Cover'}
+          className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+          onError={(e) => {
+            console.error(`[EnhancedGameCover] Error loading image: ${coverUrl}`, e);
+            // If a specific game image fails, fall back to the hardcoded SVG
+            setCoverUrl(hardcodedDefault);
+          }}
+          loading="eager"
+          fetchPriority="high"
         />
       ) : (
-        <Image
-          src={coverUrl || defaultImage}
+        // When all else fails, use the hardcoded data URL
+        <img
+          src={coverUrl || hardcodedDefault}
+          alt={game?.title || 'Game Cover'}
+          className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
           width={width}
           height={height}
-          alt={game?.title || 'Game Cover'}
-          quality={80}
-          className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-          onError={() => setCoverUrl(defaultImage)}
           loading="eager"
-          priority={true}
-          fetchpriority="high"
         />
       )}
       
@@ -457,7 +500,7 @@ export default function EnhancedGameCover({
         </div>
       )}
       
-      {isFromCache && coverUrl && (
+      {isFromCache && coverUrl && !hideInternalBadges && (
         <div className="absolute top-0 right-0 bg-green-500/80 text-white text-xs px-1 py-0.5 rounded-bl">
           Cached
         </div>
