@@ -21,9 +21,7 @@ module.exports = {
         "accent-gradient": "linear-gradient(0deg, rgba(254, 137, 31, 1) 0%, rgba(254, 182, 35, 1) 100%)",
       },
       fontFamily: {
-        urbanist: ["var(--font-urbanist)"],
-        sans: ["var(--font-urbanist)"],
-        display: ["var(--font-urbanist)"],
+        sans: "var(--body-font)",
       }
     },
 

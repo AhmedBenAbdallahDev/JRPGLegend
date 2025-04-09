@@ -7,7 +7,7 @@
     @apply text-slate-50;
   }
   body {
-    font-family: var(--font-urbanist);
+    font-family: var(--body-font);
   }
 }
 
