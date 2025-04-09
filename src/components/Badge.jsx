@@ -79,6 +79,7 @@ export const isLocalImage = (image) => {
   if (!image) return false;
   if (image.startsWith('file://')) return true;
   if (image.startsWith('app-local://')) return true;
+  if (image.startsWith('client-storage://')) return true;
   // Check if it's a regular file path (not a URL and doesn't contain special reference markers)
   if (!image.includes(':') && !image.startsWith('http')) return true;
   return false;
@@ -215,6 +216,33 @@ export const inspectCacheEntries = () => {
   }
   
   return results;
+};
+
+// Helper function to check if client-side storage is available
+export const checkLocalStorageCapability = () => {
+  const storageTypes = {
+    indexedDB: typeof window !== 'undefined' && window.indexedDB,
+    localStorage: typeof window !== 'undefined' && window.localStorage,
+    fileSystem: typeof window !== 'undefined' && window.requestFileSystem
+  };
+  
+  return {
+    hasStorage: !!(storageTypes.indexedDB || storageTypes.localStorage),
+    supportsLargeFiles: !!storageTypes.indexedDB,
+    storageTypes
+  };
+};
+
+// Generate a local storage path for game files
+export const getClientStoragePath = (gameTitle, fileType = 'rom') => {
+  if (typeof window === 'undefined') return null;
+  
+  // Create a safe filename
+  const safeTitle = gameTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+  
+  // We can't write to server, but we can prepare a client-side storage reference
+  // For example: "client-storage://roms/chrono_trigger.sfc"
+  return `client-storage://${fileType}s/${safeTitle}`;
 };
 
 export default function GameBadges({ game }) {

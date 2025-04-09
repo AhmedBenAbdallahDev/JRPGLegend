@@ -88,6 +88,11 @@ export default function SideBarNav({ categoryMenu }) {
       slug: "/platforms",
     },
     {
+      name: "Local Games",
+      icon: FaLaptop,
+      slug: "/local-games",
+    },
+    {
       name: "Cover Manager",
       icon: PhotoIcon,
       slug: "/covers",
