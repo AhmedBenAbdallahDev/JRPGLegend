@@ -1,15 +1,11 @@
-import { Inter, Dela_Gothic_One } from "next/font/google";
+import { Urbanist } from "next/font/google";
 import "./globals.css";
 
-const InterBodyFont = Inter({
+const urbanistFont = Urbanist({
   subsets: ["latin"],
-  variable: "--body-font",
-});
-
-const DeltaHeadingFont = Dela_Gothic_One({
-  subsets: ["latin"],
-  variable: "--heading-font",
-  weight: "400",
+  variable: "--font-urbanist",
+  display: "swap",
+  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
 });
 
 export const metadata = {
@@ -21,7 +17,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${InterBodyFont.variable} ${DeltaHeadingFont.variable} antialiased bg-main`}
+        className={`${urbanistFont.variable} antialiased bg-main font-urbanist`}
       >
         {children}
       </body>

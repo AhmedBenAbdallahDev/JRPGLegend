@@ -451,7 +451,7 @@ export default function EnhancedGameCover({
         </div>
       )}
       
-      {/* Handle file:// URLs specially, but treat app-local:// like regular images */}
+      {/* Handle file:// URLs specially */}
       {coverUrl && coverUrl.startsWith('file://') ? (
         <div className="w-full h-full bg-gray-800 flex items-center justify-center text-accent">
           <div className="p-4 text-center">
@@ -459,17 +459,8 @@ export default function EnhancedGameCover({
             <p className="text-sm">Local file:<br />{coverUrl.replace('file://', '')}</p>
           </div>
         </div>
-      ) : coverUrl && (coverUrl.startsWith('http://') || coverUrl.startsWith('https://')) ? (
-        <img
-          src={coverUrl}
-          alt={game?.title || 'Game Cover'}
-          className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-          onError={() => setCoverUrl(hardcodedDefault)}
-          loading="eager"
-          fetchPriority="high"
-        />
       ) : coverUrl && coverUrl.startsWith('/game/') ? (
-        // Use standard img tag for local files in the /game/ directory
+        // Use standard img tag ONLY for local files in the /game/ directory
         <img
           src={coverUrl}
           alt={game?.title || 'Game Cover'}
@@ -482,10 +473,23 @@ export default function EnhancedGameCover({
           loading="eager"
           fetchPriority="high"
         />
+      ) : coverUrl ? (
+        // Use Next.js Image for everything else (http URLs, API sources, etc.)
+        <Image
+          src={coverUrl}
+          width={width}
+          height={height}
+          alt={game?.title || 'Game Cover'}
+          quality={90}
+          className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+          onError={() => setCoverUrl(hardcodedDefault)}
+          loading="eager"
+          priority={true}
+        />
       ) : (
-        // When all else fails, use the hardcoded data URL
+        // When all else fails, use the hardcoded data URL with standard img
         <img
-          src={coverUrl || hardcodedDefault}
+          src={hardcodedDefault}
           alt={game?.title || 'Game Cover'}
           className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
           width={width}

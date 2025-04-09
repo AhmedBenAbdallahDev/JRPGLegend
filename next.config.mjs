@@ -22,6 +22,10 @@ const nextConfig = {
         protocol: "https",
         hostname: "neoclone.screenscraper.fr",
       },
+      {
+        protocol: "https",
+        hostname: "res.cloudinary.com",
+      },
     ],
   },
 };
