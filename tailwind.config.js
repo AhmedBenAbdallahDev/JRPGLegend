@@ -10,18 +10,22 @@ module.exports = {
     extend: {
       colors: {
         ...defatColours,
-        "primary": "#071D2C",
-        "main": "#031322",
-        "accent": "#446171",
+        "primary": "#FF6B6B",
+        "main": "#1A1A1A",
+        "accent": "#FFD93D",
         "accent-secondary": "#0A2737",
-        "error": "#dc2626",
+        "error": "#FF6B6B",
         "success": "#16a34a"
       },
       backgroundImage: {
         "accent-gradient": "linear-gradient(0deg, rgba(254, 137, 31, 1) 0%, rgba(254, 182, 35, 1) 100%)",
+        "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
+        "gradient-conic":
+          "conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))",
       },
       fontFamily: {
-        sans: "var(--body-font)",
+        sans: ["var(--body-font)"],
+        heading: ["var(--heading-font)"],
       }
     },
 
