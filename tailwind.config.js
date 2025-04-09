@@ -10,25 +10,21 @@ module.exports = {
     extend: {
       colors: {
         ...defatColours,
-        "primary": "#FF6B6B",
-        "main": "#1A1A1A",
-        "accent": "#FFD93D",
-        "accent-secondary": "#0A2737",
-        "error": "#FF6B6B",
-        "success": "#16a34a"
+        "primary": "var(--primary)",
+        "main": "var(--main)",
+        "accent": "var(--accent)",
+        "accent-secondary": "var(--accent-secondary)",
+        "error": "var(--error)",
+        "success": "var(--success)"
       },
       backgroundImage: {
-        "accent-gradient": "linear-gradient(0deg, rgba(254, 137, 31, 1) 0%, rgba(254, 182, 35, 1) 100%)",
-        "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
-        "gradient-conic":
-          "conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))",
+        "accent-gradient": "linear-gradient(0deg, rgba(254, 137, 31, 1) 0%, rgba(254, 182, 35, 1) 100%)"
       },
       fontFamily: {
-        sans: ["var(--body-font)"],
-        heading: ["var(--heading-font)"],
+        sans: "var(--body-font)",
+        heading: "var(--heading-font)"
       }
     },
-
   },
   plugins: [],
 };

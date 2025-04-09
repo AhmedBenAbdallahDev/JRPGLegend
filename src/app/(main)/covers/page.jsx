@@ -13,6 +13,7 @@ export default function CoverManagerPage() {
   const [cacheStats, setCacheStats] = useState({ count: 0, size: 0 });
   const [searchHistory, setSearchHistory] = useState([]);
   const [selectedConsole, setSelectedConsole] = useState('all');
+  const [selectedSource, setSelectedSource] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [cachedCovers, setCachedCovers] = useState([]);
   const [selectedCovers, setSelectedCovers] = useState(new Set());
@@ -37,6 +38,17 @@ export default function CoverManagerPage() {
     { id: 'psp', name: 'PlayStation Portable' },
     // Other
     { id: 'arcade', name: 'Arcade' }
+  ];
+
+  // Available sources for filtering
+  const sources = [
+    { id: 'all', name: 'All Sources' },
+    { id: 'wikimedia', name: 'Wikimedia' },
+    { id: 'tgdb', name: 'TheGamesDB' },
+    { id: 'screenscraper', name: 'ScreenScraper' },
+    { id: 'web-url', name: 'Web URLs' },
+    { id: 'local', name: 'Local Files' },
+    { id: 'unknown', name: 'Unknown Source' }
   ];
 
   // Group consoles by publisher
@@ -65,14 +77,35 @@ export default function CoverManagerPage() {
           if (key.startsWith('cover_')) {
             try {
               const item = JSON.parse(localStorage.getItem(key));
-              const [source, gameName, console] = key.replace('cover_', '').split(':');
+              let source, gameName, console;
+              
+              // Handle the different key formats
+              if (key.startsWith('cover_web-url:')) {
+                // Web URL format: cover_web-url:http://example.com/image.jpg
+                source = 'web-url';
+                gameName = 'Unknown';
+                console = 'unknown';
+                
+                // Try to extract the domain from the URL
+                try {
+                  const url = new URL(item.url);
+                  gameName = url.hostname;
+                } catch (urlErr) {
+                  console.log("Could not parse URL domain:", urlErr);
+                }
+              } else {
+                // Normal format: cover_source:gameName:console
+                [source, gameName, console] = key.replace('cover_', '').split(':');
+                gameName = decodeURIComponent(gameName || '');
+              }
               
               covers.push({
                 key,
-                gameName: decodeURIComponent(gameName),
-                console,
+                gameName: gameName || 'Unknown',
+                console: console || 'unknown',
                 date: new Date(item.timestamp).toLocaleDateString(),
-                url: item.url
+                url: item.url,
+                source: source || 'unknown'
               });
             } catch (err) {
               console.error("Error parsing cache item:", err);
@@ -254,9 +287,10 @@ export default function CoverManagerPage() {
 
   const filteredCovers = cachedCovers.filter(cover => {
     const matchesConsole = selectedConsole === 'all' || cover.console === selectedConsole;
+    const matchesSource = selectedSource === 'all' || cover.source === selectedSource;
     const matchesSearch = !searchQuery || 
       cover.gameName.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesConsole && matchesSearch;
+    return matchesConsole && matchesSearch && matchesSource;
   });
 
   return (
@@ -391,6 +425,18 @@ export default function CoverManagerPage() {
               ))}
             </select>
           </div>
+          <div className="min-w-[200px]">
+            <label className="block text-sm font-medium text-gray-300 mb-1">Filter by Source</label>
+            <select
+              value={selectedSource}
+              onChange={(e) => setSelectedSource(e.target.value)}
+              className="w-full bg-dark text-white px-4 py-2 rounded"
+            >
+              {sources.map(source => (
+                <option key={source.id} value={source.id}>{source.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
         
         {selectedCovers.size > 0 && (
@@ -416,17 +462,45 @@ export default function CoverManagerPage() {
             }`}
           >
             <div className="aspect-square relative mb-2">
-                  <Image
+              <Image
                 src={cover.url}
                 alt={cover.gameName}
                 fill
                 className="object-cover rounded"
-                  />
-                </div>
+              />
+              {/* Source Badge */}
+              <div className="absolute top-2 right-2 bg-black/70 text-xs px-2 py-1 rounded-full text-white">
+                {cover.source === 'wikimedia' && 'Wikimedia'}
+                {cover.source === 'tgdb' && 'TheGamesDB'}
+                {cover.source === 'screenscraper' && 'ScreenScraper'}
+                {cover.source === 'web-url' && 'Web URL'}
+                {cover.source === 'local' && 'Local File'}
+                {!['wikimedia', 'tgdb', 'screenscraper', 'web-url', 'local'].includes(cover.source) && cover.source}
+              </div>
+              
+              {/* Console Badge */}
+              <div className="absolute bottom-2 left-2 bg-accent/90 text-black text-xs px-2 py-1 rounded-full">
+                {cover.console.toUpperCase()}
+              </div>
+              
+              {/* Checkbox for selection */}
+              <div 
+                className="absolute top-2 left-2 w-5 h-5 rounded flex items-center justify-center cursor-pointer bg-black/70"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleCoverSelection(cover.key);
+                }}
+              >
+                {selectedCovers.has(cover.key) ? 
+                  <div className="w-3 h-3 bg-accent rounded-sm"></div> : 
+                  <div className="w-3 h-3 border border-gray-500 rounded-sm"></div>
+                }
+              </div>
+            </div>
             <div className="flex justify-between items-start">
               <div>
                 <h3 className="font-medium text-white truncate">{cover.gameName}</h3>
-                <p className="text-sm text-gray-400">{cover.console.toUpperCase()}</p>
+                <p className="text-sm text-gray-400">{cover.date}</p>
               </div>
               <div className="flex gap-2">
                 <button
@@ -439,7 +513,7 @@ export default function CoverManagerPage() {
             </div>
           </div>
         ))}
-        </div>
+      </div>
     </div>
   );
 } 

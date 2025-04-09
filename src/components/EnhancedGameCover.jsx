@@ -66,6 +66,37 @@ export default function EnhancedGameCover({
     
     // 2. External URL (also fast)
     if (game.image && (game.image.startsWith('http://') || game.image.startsWith('https://'))) {
+      // For external URLs, we should cache them
+      const cacheKey = `web-url:${game.image}`;
+      
+      // Check if we already have it in memory cache
+      if (coverCache.has(cacheKey)) {
+        return coverCache.get(cacheKey);
+      }
+      
+      // Check if we have it in localStorage
+      const cachedUrl = getFromLocalCache(cacheKey);
+      if (cachedUrl) {
+        // Update in-memory cache for next time
+        coverCache.set(cacheKey, cachedUrl);
+        return cachedUrl;
+      }
+      
+      // If not in cache, we'll use it directly but trigger caching
+      // Store this URL in the cache for future use
+      try {
+        if (typeof window !== 'undefined') {
+          const data = {
+            url: game.image,
+            timestamp: Date.now()
+          };
+          localStorage.setItem(`cover_${cacheKey}`, JSON.stringify(data));
+          coverCache.set(cacheKey, game.image);
+        }
+      } catch (err) {
+        // Silently fail on localStorage errors
+      }
+      
       return game.image;
     }
     
