@@ -10,6 +10,7 @@ export async function POST(request) {
   try {
     const formData = await request.formData();
     const file = formData.get('file');
+    const directory = formData.get('directory') || 'game'; // Default to 'game' directory
     
     if (!file) {
       console.error('[upload] No file uploaded');
@@ -23,7 +24,7 @@ export async function POST(request) {
     const originalFilename = file.name;
     const fileType = file.type;
     
-    console.log(`[upload] Received file: ${originalFilename}, type: ${fileType}`);
+    console.log(`[upload] Received file: ${originalFilename}, type: ${fileType}, target directory: ${directory}`);
     
     // Convert to buffer for saving to disk
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -41,8 +42,8 @@ export async function POST(request) {
     
     console.log(`[upload] Sanitized filename: ${filename}`);
     
-    // Make sure the public/game directory exists
-    const uploadDir = join(process.cwd(), 'public', 'game');
+    // Make sure the target directory exists
+    const uploadDir = join(process.cwd(), 'public', directory);
     if (!existsSync(uploadDir)) {
       console.log(`[upload] Creating upload directory: ${uploadDir}`);
       await mkdir(uploadDir, { recursive: true });
@@ -59,7 +60,7 @@ export async function POST(request) {
       success: true,
       filename: filename,
       originalName: originalFilename,
-      path: `/game/${filename}`,
+      path: `/${directory}/${filename}`,
       size: buffer.length
     });
     

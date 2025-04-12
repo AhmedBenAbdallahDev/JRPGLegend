@@ -2,61 +2,12 @@
  * Game Storage Service
  * 
  * This service manages client-side storage of game ROMs and related files
- * using IndexedDB for large file storage.
+ * using local file system for consistency with image storage.
  */
 
-// Database constants
-const DB_NAME = 'JRPGLegend_Storage';
-const DB_VERSION = 1;
-const ROMS_STORE = 'roms';
-const SAVES_STORE = 'saves';
-const COVERS_STORE = 'covers';
-const METADATA_STORE = 'metadata';
-
-/**
- * Initialize the storage database
- * @returns {Promise<IDBDatabase>} Database instance
- */
-export const initDatabase = () => {
-  return new Promise((resolve, reject) => {
-    if (!window.indexedDB) {
-      reject(new Error('Your browser does not support IndexedDB, which is required for ROM storage'));
-      return;
-    }
-    
-    const request = window.indexedDB.open(DB_NAME, DB_VERSION);
-    
-    request.onerror = (event) => {
-      console.error('IndexedDB error:', event.target.error);
-      reject(new Error('Could not open game storage database'));
-    };
-    
-    request.onupgradeneeded = (event) => {
-      const db = event.target.result;
-      
-      // Create object stores if they don't exist
-      if (!db.objectStoreNames.contains(ROMS_STORE)) {
-        db.createObjectStore(ROMS_STORE, { keyPath: 'id' });
-      }
-      
-      if (!db.objectStoreNames.contains(SAVES_STORE)) {
-        db.createObjectStore(SAVES_STORE, { keyPath: 'id' });
-      }
-      
-      if (!db.objectStoreNames.contains(COVERS_STORE)) {
-        db.createObjectStore(COVERS_STORE, { keyPath: 'id' });
-      }
-      
-      if (!db.objectStoreNames.contains(METADATA_STORE)) {
-        db.createObjectStore(METADATA_STORE, { keyPath: 'id' });
-      }
-    };
-    
-    request.onsuccess = (event) => {
-      resolve(event.target.result);
-    };
-  });
-};
+// Constants
+const ROMS_METADATA_KEY = 'local_roms_metadata';
+export const ROMS_DIRECTORY = '/roms/';
 
 /**
  * Store a ROM file
@@ -67,191 +18,148 @@ export const initDatabase = () => {
  */
 export const storeROM = async (file, gameTitle, platform) => {
   try {
-    const db = await initDatabase();
-    const safeTitle = gameTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    const id = `${safeTitle}_${platform}`;
-    const storagePath = `client-storage://roms/${id}`;
+    console.log(`[gameStorage] Storing ROM: ${file.name} for ${gameTitle} (${platform})`);
     
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction([ROMS_STORE, METADATA_STORE], 'readwrite');
-      
-      transaction.onerror = (event) => {
-        console.error('Transaction error:', event.target.error);
-        reject(new Error('Failed to store ROM file'));
-      };
-      
-      // Read the file as an ArrayBuffer
-      const reader = new FileReader();
-      reader.onload = function(event) {
-        try {
-          // Store the ROM data
-          const romStore = transaction.objectStore(ROMS_STORE);
-          const romData = {
-            id,
-            title: gameTitle,
-            platform,
-            data: event.target.result,
-            size: file.size,
-            type: file.type || 'application/octet-stream',
-            filename: file.name,
-            dateAdded: new Date().toISOString()
-          };
-          
-          const romRequest = romStore.put(romData);
-          
-          // Store metadata separately (without the ROM data)
-          const metadataStore = transaction.objectStore(METADATA_STORE);
-          const metadata = {
-            id,
-            title: gameTitle,
-            platform,
-            size: file.size,
-            type: file.type || 'application/octet-stream',
-            filename: file.name,
-            storagePath,
-            dateAdded: new Date().toISOString()
-          };
-          
-          const metaRequest = metadataStore.put(metadata);
-          
-          metaRequest.onsuccess = () => {
-            resolve(storagePath);
-          };
-        } catch (err) {
-          reject(err);
-        }
-      };
-      
-      reader.onerror = () => {
-        reject(new Error('Failed to read ROM file'));
-      };
-      
-      reader.readAsArrayBuffer(file);
+    // Create a sanitized filename
+    const safeTitle = gameTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    const safeFileName = file.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_.-]/g, '').toLowerCase();
+    
+    // Use FormData to upload the file to our local server
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('directory', 'roms'); // Tell the upload API to store in /public/roms/
+    
+    console.log(`[gameStorage] Uploading ROM file: ${safeFileName}`);
+    const uploadResponse = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
     });
+
+    if (!uploadResponse.ok) {
+      const error = await uploadResponse.json();
+      throw new Error(error.error || 'Failed to upload ROM file');
+    }
+
+    const uploadResult = await uploadResponse.json();
+    console.log(`[gameStorage] ROM uploaded successfully: ${uploadResult.path}`);
+    
+    // Create the metadata
+    const id = `${safeTitle}_${platform}`;
+    const storagePath = uploadResult.path;
+    
+    // Store metadata in localStorage
+    const metadata = {
+      id,
+      title: gameTitle,
+      platform,
+      fileName: safeFileName,
+      size: file.size,
+      type: file.type || 'application/octet-stream',
+      storagePath,
+      dateAdded: new Date().toISOString()
+    };
+    
+    // Get existing metadata or initialize empty array
+    const existingMetadata = getAllROMsMetadata();
+    
+    // Check if this ROM already exists
+    const existingIndex = existingMetadata.findIndex(item => item.id === id);
+    if (existingIndex >= 0) {
+      existingMetadata[existingIndex] = metadata;
+    } else {
+      existingMetadata.push(metadata);
+    }
+    
+    // Save updated metadata
+    localStorage.setItem(ROMS_METADATA_KEY, JSON.stringify(existingMetadata));
+    console.log(`[gameStorage] ROM metadata saved: ${id}`);
+    
+    return storagePath;
   } catch (error) {
-    console.error('Error storing ROM:', error);
+    console.error('[gameStorage] Error storing ROM:', error);
     throw error;
   }
 };
 
 /**
- * Get a ROM file by ID
- * @param {string} id - The ROM ID
- * @returns {Promise<Object>} ROM data
+ * Get all stored ROM metadata
+ * @returns {Array} List of ROM metadata
  */
-export const getROM = async (id) => {
-  const db = await initDatabase();
-  
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([ROMS_STORE], 'readonly');
-    const store = transaction.objectStore(ROMS_STORE);
-    const request = store.get(id);
-    
-    request.onerror = (event) => {
-      reject(new Error('Failed to retrieve ROM'));
-    };
-    
-    request.onsuccess = (event) => {
-      if (request.result) {
-        resolve(request.result);
-      } else {
-        reject(new Error('ROM not found'));
-      }
-    };
-  });
+export const getAllROMs = () => {
+  console.log('[gameStorage] Getting all ROMs metadata');
+  return getAllROMsMetadata();
 };
 
 /**
- * Get all stored ROM metadata (without the ROM data)
- * @returns {Promise<Array>} List of ROM metadata
+ * Helper function to get ROM metadata from localStorage
  */
-export const getAllROMs = async () => {
-  const db = await initDatabase();
-  
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([METADATA_STORE], 'readonly');
-    const store = transaction.objectStore(METADATA_STORE);
-    const request = store.getAll();
-    
-    request.onerror = (event) => {
-      reject(new Error('Failed to retrieve ROMs list'));
-    };
-    
-    request.onsuccess = (event) => {
-      resolve(request.result || []);
-    };
-  });
+const getAllROMsMetadata = () => {
+  try {
+    const metadata = localStorage.getItem(ROMS_METADATA_KEY);
+    return metadata ? JSON.parse(metadata) : [];
+  } catch (e) {
+    console.error('[gameStorage] Error parsing ROM metadata:', e);
+    return [];
+  }
+};
+
+/**
+ * Get a ROM by ID
+ * @param {string} id - The ROM ID to find
+ * @returns {Object|null} ROM metadata or null if not found
+ */
+export const getROM = (id) => {
+  console.log(`[gameStorage] Getting ROM by ID: ${id}`);
+  const allROMs = getAllROMsMetadata();
+  return allROMs.find(rom => rom.id === id) || null;
 };
 
 /**
  * Delete a ROM by ID
  * @param {string} id - The ROM ID to delete
- * @returns {Promise<boolean>} Success status
+ * @returns {boolean} Success status
  */
 export const deleteROM = async (id) => {
-  const db = await initDatabase();
-  
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([ROMS_STORE, METADATA_STORE], 'readwrite');
-    const romStore = transaction.objectStore(ROMS_STORE);
-    const metaStore = transaction.objectStore(METADATA_STORE);
+  console.log(`[gameStorage] Deleting ROM: ${id}`);
+  try {
+    const allROMs = getAllROMsMetadata();
+    const romToDelete = allROMs.find(rom => rom.id === id);
     
-    // Delete from both stores
-    const romRequest = romStore.delete(id);
-    const metaRequest = metaStore.delete(id);
+    if (!romToDelete) {
+      console.log(`[gameStorage] ROM not found: ${id}`);
+      return false;
+    }
     
-    transaction.oncomplete = () => {
-      resolve(true);
-    };
+    // Remove the file via API (would need to implement this endpoint)
+    // For now we'll just remove the metadata as the file will remain on disk
+    console.log(`[gameStorage] Removing metadata for ROM: ${id}`);
     
-    transaction.onerror = (event) => {
-      reject(new Error('Failed to delete ROM'));
-    };
-  });
+    // Filter out the deleted ROM
+    const updatedROMs = allROMs.filter(rom => rom.id !== id);
+    
+    // Save updated metadata
+    localStorage.setItem(ROMS_METADATA_KEY, JSON.stringify(updatedROMs));
+    
+    return true;
+  } catch (e) {
+    console.error(`[gameStorage] Error deleting ROM ${id}:`, e);
+    return false;
+  }
 };
 
 /**
  * Check if a client-side storage path exists
- * @param {string} storagePath - The client storage path to check
- * @returns {Promise<boolean>} Whether the path exists
+ * @param {string} path - The path to check
+ * @returns {boolean} Whether the path exists in our metadata
  */
-export const checkStoragePath = async (storagePath) => {
-  if (!storagePath || !storagePath.startsWith('client-storage://')) {
-    return false;
-  }
+export const checkStoragePath = (path) => {
+  if (!path) return false;
   
-  try {
-    // Extract the store type and ID from the path
-    const pathParts = storagePath.replace('client-storage://', '').split('/');
-    if (pathParts.length < 2) return false;
-    
-    const storeType = pathParts[0]; // 'roms', 'saves', etc.
-    const id = pathParts[1]; // the file ID
-    
-    const db = await initDatabase();
-    
-    return new Promise((resolve) => {
-      // Use metadata store for lightweight checking
-      const transaction = db.transaction([METADATA_STORE], 'readonly');
-      const store = transaction.objectStore(METADATA_STORE);
-      const request = store.get(id);
-      
-      request.onsuccess = () => {
-        resolve(!!request.result);
-      };
-      
-      request.onerror = () => {
-        resolve(false);
-      };
-    });
-  } catch (error) {
-    console.error('Error checking storage path:', error);
-    return false;
-  }
+  const allROMs = getAllROMsMetadata();
+  return allROMs.some(rom => rom.storagePath === path);
 };
 
 export default {
-  initDatabase,
   storeROM,
   getROM,
   getAllROMs,

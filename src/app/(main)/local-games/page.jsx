@@ -1,13 +1,11 @@
-'use client';
+'use client';;
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { v4 as uuidv4 } from 'uuid';
-import { FaGamepad, FaTrash, FaPencilAlt, FaGlobeAmericas, FaExternalLinkAlt } from 'react-icons/fa';
-import { HiPhotograph } from 'react-icons/hi';
+import { FaGamepad, FaTrash, FaPencilAlt } from 'react-icons/fa';
 import { getAllROMs, deleteROM } from '@/services/gameStorage';
 import { getAllOfflineGames, saveOfflineGame, deleteOfflineGame } from '@/lib/offlineGames';
-import { checkLocalStorageCapability, getRegionColor, getRegionName, getImageSource } from '@/components/Badge';
+import { checkLocalStorageCapability, getRegionColor, getRegionName } from '@/components/Badge';
 import EnhancedGameCover from '@/components/EnhancedGameCover';
 
 export default function LocalGamesPage() {
@@ -18,6 +16,7 @@ export default function LocalGamesPage() {
   const [storageInfo, setStorageInfo] = useState(null);
   const [editGame, setEditGame] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [debugInfo, setDebugInfo] = useState('');
   
   // Edit form state
   const [formData, setFormData] = useState({
@@ -42,22 +41,25 @@ export default function LocalGamesPage() {
     loadAllLocalGames();
   }, []);
   
-  const loadAllLocalGames = async () => {
+  const loadAllLocalGames = () => {
     try {
       setLoading(true);
+      setDebugInfo('Loading games from local storage...');
       
-      // Get games from both systems
-      const indexedDBGames = await getAllROMs() || [];
+      // Get games from both systems - note that getAllROMs is now synchronous
+      const fileSystemGames = getAllROMs() || [];
       const localStorageGames = getAllOfflineGames() || [];
       
-      // Combine games from both systems
+      setDebugInfo(`Found ${fileSystemGames.length} file system games and ${localStorageGames.length} localStorage games`);
+      
       // Mark the source of each game so we know which system to use for operations
-      const markedIndexedDBGames = indexedDBGames.map(game => ({ 
+      const markedFileSystemGames = fileSystemGames.map(game => ({ 
         ...game, 
-        storageSystem: 'indexedDB',
+        storageSystem: 'fileSystem',
         // Add defaults for properties that might be missing
         description: game.description || '',
-        region: game.region || ''
+        region: game.region || '',
+        storagePath: game.storagePath || ''
       }));
       
       const markedLocalStorageGames = localStorageGames.map(game => ({ 
@@ -71,14 +73,16 @@ export default function LocalGamesPage() {
       }));
       
       // Merge both arrays and sort by title
-      const allGames = [...markedIndexedDBGames, ...markedLocalStorageGames]
+      const allGames = [...markedFileSystemGames, ...markedLocalStorageGames]
         .sort((a, b) => a.title.localeCompare(b.title));
       
       setGames(allGames);
+      setDebugInfo(`Total games found: ${allGames.length}`);
       setLoading(false);
     } catch (error) {
       console.error('Error loading games:', error);
       setError('Failed to load local games');
+      setDebugInfo(`Error: ${error.message}`);
       setLoading(false);
     }
   };
@@ -89,16 +93,24 @@ export default function LocalGamesPage() {
     }
     
     try {
-      if (game.storageSystem === 'indexedDB') {
-        await deleteROM(game.id);
+      if (game.storageSystem === 'fileSystem') {
+        // Now deleteROM is synchronous
+        const result = deleteROM(game.id);
+        if (result) {
+          setDebugInfo(`Successfully deleted file system game: ${game.title}`);
+        } else {
+          throw new Error('Failed to delete ROM metadata');
+        }
       } else if (game.storageSystem === 'localStorage') {
         deleteOfflineGame(game.id);
+        setDebugInfo(`Successfully deleted localStorage game: ${game.title}`);
       }
       
       // Remove the game from the state
       setGames(games.filter(g => !(g.id === game.id && g.storageSystem === game.storageSystem)));
     } catch (error) {
       console.error('Error deleting game:', error);
+      setDebugInfo(`Error deleting game: ${error.message}`);
       alert('Failed to delete game');
     }
   };
@@ -112,6 +124,10 @@ export default function LocalGamesPage() {
       region: game.region || '',
       localGameFile: null
     });
+    
+    const storagePath = game.storagePath || game.gameLink || '';
+    setDebugInfo(`Editing game: ${game.title}, Storage path: ${storagePath}, Storage system: ${game.storageSystem}`);
+    
     setShowEditModal(true);
   };
   
@@ -250,127 +266,130 @@ export default function LocalGamesPage() {
         </div>
       )}
       
-      {loading ? (
-        <div className="text-center py-4">
-          <div className="animate-spin h-8 w-8 border-4 border-accent border-t-transparent rounded-full mx-auto"></div>
-          <p className="mt-2">Loading local games...</p>
-        </div>
-      ) : games.length === 0 ? (
-        <div className="text-center py-8 bg-gray-800 rounded-lg">
-          <FaGamepad className="mx-auto h-12 w-12 opacity-50 text-accent mb-3" />
-          <h2 className="font-medium text-xl mb-2">No Local Games Found</h2>
-          <p className="text-gray-400 mb-4">Add local games to play them offline.</p>
-          <Link 
-            href="/game/add"
-            className="bg-accent text-white py-2 px-4 rounded-md hover:bg-accent-dark"
-          >
-            Add Your First Game
-          </Link>
-        </div>
-      ) : (
-        <div>
-          {/* Game count info */}
-          <div className="bg-gray-800 p-4 rounded-lg mb-6">
-            <p className="text-gray-300">
-              <span className="font-medium text-accent">
-                {games.length} {games.length === 1 ? 'game' : 'games'}
-              </span> in your local library across {Object.keys(gamesByPlatform).length} platforms.
-            </p>
-          </div>
-          
-          {/* Game list by platform */}
-          {Object.keys(gamesByPlatform).sort().map(platform => (
-            <div key={platform} className="mb-8">
-              <h2 className="text-xl font-medium mb-4 border-b border-gray-700 pb-2">
-                {getPlatformLabel(platform)}
-              </h2>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                {gamesByPlatform[platform].map(game => (
-                  <div key={`${game.id}-${game.storageSystem}`} className="bg-gray-800 rounded-lg overflow-hidden group">
-                    <div className="aspect-[3/2] relative overflow-hidden">
-                      <EnhancedGameCover 
-                        game={game}
-                        width={300}
-                        height={200}
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      />
-                      
-                      {/* Action buttons - visible on hover */}
-                      <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                        <button 
-                          onClick={() => handleEdit(game)}
-                          className="p-2 bg-accent rounded-full text-white hover:bg-accent-dark"
-                          title="Edit game"
-                        >
-                          <FaPencilAlt />
-                        </button>
-                        <Link 
-                          href={`/game/${game.slug}`}
-                          className="p-2 bg-blue-600 rounded-full text-white hover:bg-blue-700"
-                          title="View game details"
-                        >
-                          <FaExternalLinkAlt />
-                        </Link>
-                        <button 
-                          onClick={() => handleDelete(game)}
-                          className="p-2 bg-red-600 rounded-full text-white hover:bg-red-700"
-                          title="Delete game"
-                        >
-                          <FaTrash />
-                        </button>
-                      </div>
-                      
-                      {/* Info badges */}
-                      <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
-                        {/* Region badge */}
-                        {game.region && (
-                          <div className={`${getRegionColor(game.region)} text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1`}>
-                            <FaGlobeAmericas className="w-3 h-3" />
-                            <span>{getRegionName(game.region)}</span>
-                          </div>
-                        )}
-                        
-                        {/* Storage system badge */}
-                        <div className={`${game.storageSystem === 'localStorage' ? 'bg-purple-600' : 'bg-green-600'} text-white text-xs px-2 py-0.5 rounded-full`}>
-                          {game.storageSystem === 'localStorage' ? 'Metadata Only' : 'Full ROM'}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="p-3">
-                      <h3 className="font-medium truncate" title={game.title}>{game.title}</h3>
-                      {game.description && (
-                        <p className="text-gray-400 text-sm line-clamp-2" title={game.description}>
-                          {game.description}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
+      {debugInfo && (
+        <div className="bg-blue-500/20 text-blue-300 p-3 rounded mb-6 text-sm">
+          <div className="font-bold">Debug Information:</div>
+          <div>{debugInfo}</div>
         </div>
       )}
       
-      {/* Edit Game Modal */}
+      {loading ? (
+        <div className="text-center py-10">
+          <div className="inline-block animate-spin w-6 h-6 border-2 border-accent border-t-transparent rounded-full mr-2"></div>
+          Loading games...
+        </div>
+      ) : games.length === 0 ? (
+        <div className="text-center py-10">
+          <div className="bg-primary p-6 rounded-lg inline-block mb-4">
+            <FaGamepad className="text-4xl text-accent mx-auto mb-2" />
+            <h2 className="text-xl font-bold">No Local Games Found</h2>
+            <p className="text-gray-400 mt-2">
+              You haven't added any local games yet.
+            </p>
+          </div>
+          <div>
+            <Link 
+              href="/game/add"
+              className="bg-accent text-white py-2 px-4 rounded-md hover:bg-accent-dark"
+            >
+              Add Your First Game
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {Object.entries(gamesByPlatform).map(([platform, platformGames]) => (
+              <div 
+                key={platform} 
+                className="bg-primary p-4 rounded-lg"
+              >
+                <h2 className="text-xl font-bold mb-4 border-b border-accent pb-2">
+                  {getPlatformLabel(platform)} ({platformGames.length})
+                </h2>
+                
+                <div className="space-y-3">
+                  {platformGames.map(game => (
+                    <div key={`${game.id}-${game.storageSystem}`} className="flex bg-black/30 rounded-lg overflow-hidden">
+                      <div className="w-20 h-20 flex-shrink-0">
+                        <EnhancedGameCover 
+                          game={game} 
+                          width={80}
+                          height={80}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      
+                      <div className="p-2 flex-grow">
+                        <div className="flex justify-between items-start">
+                          <h3 className="font-medium text-sm flex-grow">{game.title}</h3>
+                          <div className="flex space-x-1">
+                            <button 
+                              onClick={() => handleEdit(game)}
+                              className="p-1 rounded hover:bg-accent/20 text-accent"
+                              title="Edit"
+                            >
+                              <FaPencilAlt size={12} />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(game)}
+                              className="p-1 rounded hover:bg-red-500/20 text-red-500"
+                              title="Delete"
+                            >
+                              <FaTrash size={12} />
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <div className="flex space-x-1 mt-1 items-center text-xs">
+                          <span className="text-gray-400">Storage: </span>
+                          <span className={game.storageSystem === 'fileSystem' ? 'text-green-400' : 'text-blue-400'}>
+                            {game.storageSystem}
+                          </span>
+                        </div>
+                        
+                        {game.region && (
+                          <div 
+                            className="inline-block px-1 text-xs rounded mt-1"
+                            style={{ backgroundColor: getRegionColor(game.region) }}
+                          >
+                            {getRegionName(game.region)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      
+      {/* Edit Modal */}
       {showEditModal && editGame && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/70">
-          <div className="bg-gray-800 p-6 rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4">Edit Game: {editGame.title}</h2>
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-primary rounded-lg shadow-xl w-full max-w-md">
+            <div className="flex justify-between items-center p-4 border-b border-accent">
+              <h2 className="text-lg font-bold">Edit Game</h2>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                &times;
+              </button>
+            </div>
             
-            <form onSubmit={handleEditSubmit}>
+            <form onSubmit={handleEditSubmit} className="p-4">
               <div className="mb-4">
                 <label className="block text-sm font-medium mb-1">
-                  Game Title
-                  <input
+                  Title
+                  <input 
                     type="text"
                     name="title"
                     value={formData.title}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md"
-                    required
+                    className="w-full p-2 bg-black/30 rounded border border-accent mt-1"
                   />
                 </label>
               </div>
@@ -378,63 +397,78 @@ export default function LocalGamesPage() {
               <div className="mb-4">
                 <label className="block text-sm font-medium mb-1">
                   Description
-                  <textarea
+                  <textarea 
                     name="description"
                     value={formData.description}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md"
-                    rows="3"
+                    className="w-full p-2 bg-black/30 rounded border border-accent mt-1"
+                    rows={3}
                   />
                 </label>
               </div>
               
               <div className="mb-4">
                 <label className="block text-sm font-medium mb-1">
-                  Cover Image URL
-                  <input
+                  Image URL/Path
+                  <input 
                     type="text"
                     name="image"
                     value={formData.image}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md"
-                    placeholder="URL or wikimedia:title"
+                    className="w-full p-2 bg-black/30 rounded border border-accent mt-1"
                   />
                 </label>
-                <p className="text-xs text-gray-500 mt-1">
-                  Tip: Use "wikimedia:Game Title" to automatically fetch covers
-                </p>
+                <div className="mt-1 p-2 bg-blue-950/50 rounded text-xs">
+                  <div className="font-bold">Current image path:</div>
+                  <div className="text-blue-300 break-all">{editGame.image || 'No image path'}</div>
+                  <div className="mt-1 font-bold">Image source type:</div>
+                  <div className="text-blue-300">{getImageSource(editGame)}</div>
+                </div>
               </div>
               
               <div className="mb-4">
                 <label className="block text-sm font-medium mb-1">
                   Region
-                  <select
+                  <input 
+                    type="text"
                     name="region"
                     value={formData.region}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md"
-                  >
-                    <option value="">No Region</option>
-                    <option value="us">USA</option>
-                    <option value="jp">Japan</option>
-                    <option value="eu">Europe</option>
-                    <option value="world">World</option>
-                    <option value="other">Other</option>
-                  </select>
+                    className="w-full p-2 bg-black/30 rounded border border-accent mt-1"
+                    placeholder="us, jp, eu, etc."
+                  />
                 </label>
               </div>
               
-              <div className="flex justify-end space-x-3 mt-6">
+              {editGame.storageSystem === 'fileSystem' ? (
+                <div className="mb-4 p-2 bg-orange-950/50 rounded text-xs">
+                  <div className="font-bold">Game ROM file path:</div>
+                  <div className="text-orange-300 break-all">{editGame.storagePath || 'Unknown path'}</div>
+                  <div className="mt-1 text-orange-300">
+                    File is stored in public{ROMS_DIRECTORY} directory
+                  </div>
+                </div>
+              ) : (
+                <div className="mb-4 p-2 bg-green-950/50 rounded text-xs">
+                  <div className="font-bold">Game ROM file path:</div>
+                  <div className="text-green-300 break-all">{editGame.gameLink || 'Unknown path'}</div>
+                  <div className="mt-1 text-green-300">
+                    Game data stored in localStorage under games_{editGame.core}
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex justify-end space-x-3">
                 <button
                   type="button"
                   onClick={() => setShowEditModal(false)}
-                  className="px-4 py-2 bg-gray-600 rounded-md hover:bg-gray-700"
+                  className="px-4 py-2 border border-accent text-accent rounded hover:bg-accent hover:text-white transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-accent rounded-md hover:bg-accent-dark"
+                  className="px-4 py-2 bg-accent text-white rounded hover:bg-accent-dark transition-colors"
                 >
                   Save Changes
                 </button>
