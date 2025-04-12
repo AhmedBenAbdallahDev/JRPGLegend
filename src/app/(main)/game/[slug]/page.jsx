@@ -1,20 +1,13 @@
-import { getGameBySlug } from "@/lib/gameQueries";
+"use client";
+
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import GameEmulator from "@/components/GameEmulator";
 import Disqus from "@/components/Disqus";
-import { Suspense } from "react";
 import { SiPlaystation, SiSega } from 'react-icons/si';
-import { FaGamepad, FaMobileAlt } from 'react-icons/fa';
-
-export async function generateMetadata({ params }) {
-  const game = await getGameBySlug(params.slug);
-  const title = game?.title + " - TheNextGamePlatform" || "TheNextGamePlatform Retro Game";
-  const description = game?.description || "Discover the best free Retro Games";
-
-  return {
-    title,
-    description,
-  };
-}
+import { FaGamepad, FaMobileAlt, FaBug } from 'react-icons/fa';
+import { getOfflineGameBySlug } from "@/lib/offlineGames";
+import Head from "next/head";
 
 // Function to get the appropriate icon for each platform category
 const getCategoryIcon = (slug) => {
@@ -46,67 +39,124 @@ const getCategoryIcon = (slug) => {
   }
 };
 
-export default async function Page({ params }) {
-  const game = await getGameBySlug(params.slug);
+export default function GamePage() {
+  const [game, setGame] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const { slug } = useParams();
 
-  if (!game) {
+  useEffect(() => {
+    async function fetchGameData() {
+      if (!slug) {
+        setError("No game slug provided");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // First check if it's an offline game
+        const offlineGame = getOfflineGameBySlug(slug);
+        
+        if (offlineGame) {
+          console.log("Found offline game:", offlineGame);
+          setGame(offlineGame);
+          setLoading(false);
+          return;
+        }
+
+        // If not found locally, fetch from the server API
+        const response = await fetch(`/api/games/${slug}`);
+        
+        if (!response.ok) {
+          throw new Error(`Error fetching game: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.error) {
+          throw new Error(data.error);
+        }
+        
+        // Online game data comes directly in the response, not in a game property
+        setGame(data);
+      } catch (error) {
+        console.error("Error loading game:", error);
+        setError(error.message || "Failed to load game");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchGameData();
+  }, [slug]);
+
+  if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <p className="text-center">Game not found</p>
+      <div className="container mx-auto p-4">
+        <div className="text-center py-20">
+          <div className="spinner"></div>
+          <p className="mt-4 text-xl">Loading game...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !game) {
+    return (
+      <div className="container mx-auto p-4">
+        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded">
+          <div className="flex items-center">
+            <FaBug className="mr-2" />
+            <h2 className="text-xl font-bold">Game not found</h2>
+          </div>
+          <p className="mt-2">{error || "The requested game could not be found."}</p>
+          <p className="mt-2">Debug info: Attempted to load game with slug: {slug}</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Breadcrumb */}
-      <nav className="rounded-md w-full mb-4">
-        <ol className="list-reset flex">
-          <li>
-            <a href="/" className="hover:text-accent">Home</a>
-          </li>
-          <li>
-            <span className="text-gray-500 mx-2">/</span>
-          </li>
-          <li>
-            <a 
-              href={`/category/${game?.categories[0]?.slug}`} 
-              className="hover:text-accent flex items-center gap-1"
-            >
-              {getCategoryIcon(game?.categories[0]?.slug)}
-              {game?.categories[0]?.title}
-            </a>
-          </li>
-          <li>
-            <span className="text-gray-500 mx-2">/</span>
-          </li>
-          <li>
-            <span className="text-gray-500">{game?.title}</span>
-          </li>
-        </ol>
-      </nav>
+    <>
+      <Head>
+        <title>{game.title} - TheNextGamePlatform</title>
+        <meta name="description" content={game.description || "Play this retro game online for free"} />
+      </Head>
 
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-2xl font-bold mb-4 flex items-center gap-2">
-          {game?.title}
-          <span className="text-accent">
-            {getCategoryIcon(game?.categories[0]?.slug)}
-          </span>
+      <div className="container mx-auto p-4">
+        <div className="mb-4 flex items-center text-sm">
+          <span>Home</span>
+          <span className="mx-2">/</span>
+          {game.categories && game.categories[0] && (
+            <>
+              <span>{game.categories[0].name}</span>
+              <span className="mx-2">/</span>
+            </>
+          )}
+          <span className="font-semibold">{game.title}</span>
+        </div>
+
+        <h1 className="text-3xl font-bold mb-4 flex items-center">
+          {game.categories && game.categories[0] && (
+            <span className="mr-2">
+              {getCategoryIcon(game.categories[0].slug)}
+            </span>
+          )}
+          {game.title}
         </h1>
-        
-        <GameEmulator game={game} />
-      </div>
 
-      {/* Comments */}
-      <div className="mt-8">
-        <Suspense fallback={<p>Loading comments...</p>}>
-          <Disqus
-            url={`${process.env.NEXT_WEBSITE_URL}/game/${game?.slug}`}
-            identifier={game?.id}
-            title={game?.title}
+        <div className="mb-8">
+          <GameEmulator game={game} />
+        </div>
+
+        <div className="mt-12">
+          <Disqus 
+            identifier={game.id || game.slug}
+            title={game.title}
+            url={`https://your-domain.com/game/${game.slug}`}
           />
-        </Suspense>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

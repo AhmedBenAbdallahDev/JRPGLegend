@@ -45,6 +45,7 @@ export const storeROM = async (file, gameTitle, platform) => {
     
     // Create the metadata
     const id = `${safeTitle}_${platform}`;
+    // Ensure the storage path has the leading slash
     const storagePath = uploadResult.path;
     
     // Store metadata in localStorage
@@ -55,7 +56,8 @@ export const storeROM = async (file, gameTitle, platform) => {
       fileName: safeFileName,
       size: file.size,
       type: file.type || 'application/octet-stream',
-      storagePath,
+      storagePath, // Path with leading slash for direct access
+      gameLink: safeFileName, // Also provide gameLink for compatibility with existing code
       dateAdded: new Date().toISOString()
     };
     
@@ -87,7 +89,21 @@ export const storeROM = async (file, gameTitle, platform) => {
  */
 export const getAllROMs = () => {
   console.log('[gameStorage] Getting all ROMs metadata');
-  return getAllROMsMetadata();
+  try {
+    const allROMs = getAllROMsMetadata();
+    
+    // Make sure all ROMs have both storagePath and gameLink for compatibility
+    return allROMs.map(rom => {
+      // If gameLink is missing but storagePath exists, use storagePath for gameLink
+      if (!rom.gameLink && rom.storagePath) {
+        rom.gameLink = rom.storagePath;
+      }
+      return rom;
+    });
+  } catch (error) {
+    console.error('[gameStorage] Error getting all ROMs:', error);
+    return [];
+  }
 };
 
 /**
@@ -110,8 +126,21 @@ const getAllROMsMetadata = () => {
  */
 export const getROM = (id) => {
   console.log(`[gameStorage] Getting ROM by ID: ${id}`);
-  const allROMs = getAllROMsMetadata();
-  return allROMs.find(rom => rom.id === id) || null;
+  try {
+    const allROMs = getAllROMsMetadata();
+    const rom = allROMs.find(rom => rom.id === id);
+    
+    // Ensure gameLink is set if only storagePath exists
+    if (rom && rom.storagePath && !rom.gameLink) {
+      // For direct file access we use storagePath
+      rom.gameLink = rom.storagePath;
+    }
+    
+    return rom || null;
+  } catch (error) {
+    console.error(`[gameStorage] Error getting ROM by ID ${id}:`, error);
+    return null;
+  }
 };
 
 /**

@@ -3,9 +3,9 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FaGamepad, FaTrash, FaPencilAlt } from 'react-icons/fa';
-import { getAllROMs, deleteROM } from '@/services/gameStorage';
+import { getAllROMs, deleteROM, ROMS_DIRECTORY } from '@/services/gameStorage';
 import { getAllOfflineGames, saveOfflineGame, deleteOfflineGame } from '@/lib/offlineGames';
-import { checkLocalStorageCapability, getRegionColor, getRegionName } from '@/components/Badge';
+import { checkLocalStorageCapability, getRegionColor, getRegionName, getImageSource } from '@/components/Badge';
 import EnhancedGameCover from '@/components/EnhancedGameCover';
 
 export default function LocalGamesPage() {
@@ -155,6 +155,7 @@ export default function LocalGamesPage() {
         
         // Save the updated game
         saveOfflineGame(updatedGame);
+        setDebugInfo(`Updated localStorage game: ${updatedGame.title}`);
         
         // Update the game in the state
         setGames(games.map(game => 
@@ -165,13 +166,44 @@ export default function LocalGamesPage() {
         
         // Close the modal
         setShowEditModal(false);
+      } else if (editGame.storageSystem === 'fileSystem') {
+        // Update metadata for file system game
+        const updatedGame = {
+          ...editGame,
+          title: formData.title,
+          description: formData.description,
+          image: formData.image,
+          region: formData.region,
+          updatedAt: new Date().toISOString()
+        };
+        
+        // Get all the current ROMs
+        const allRoms = getAllROMs();
+        
+        // Find and update the specific ROM
+        const updatedRoms = allRoms.map(rom => 
+          rom.id === editGame.id ? updatedGame : rom
+        );
+        
+        // Save back to localStorage
+        localStorage.setItem('local_roms_metadata', JSON.stringify(updatedRoms));
+        setDebugInfo(`Updated file system game: ${updatedGame.title}`);
+        
+        // Update the game in the state
+        setGames(games.map(game => 
+          (game.id === editGame.id && game.storageSystem === 'fileSystem') 
+            ? updatedGame 
+            : game
+        ));
+        
+        // Close the modal
+        setShowEditModal(false);
       } else {
-        // For IndexedDB games, we don't have direct editing yet
-        // This would require modifications to the gameStorage.js service
-        alert('Editing IndexedDB stored games is not supported yet. Please use the localStorage system for editable games.');
+        throw new Error(`Unknown storage system: ${editGame.storageSystem}`);
       }
     } catch (error) {
       console.error('Error updating game:', error);
+      setDebugInfo(`Error updating game: ${error.message}`);
       alert(`Failed to update game: ${error.message}`);
     }
   };
