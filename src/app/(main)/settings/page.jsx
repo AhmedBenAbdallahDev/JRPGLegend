@@ -2,6 +2,38 @@
 
 import { useSettings } from "@/context/SettingsContext";
 import { useState } from "react";
+import { FaDesktop, FaGlobeAmericas } from 'react-icons/fa';
+import { HiPhotograph } from 'react-icons/hi';
+import { TbWifi } from 'react-icons/tb';
+
+// Badge preview component
+const BadgePreview = ({ children, color, title, description, isEnabled, onToggle }) => {
+  return (
+    <div className="flex items-start justify-between border-b border-accent-secondary pb-4 mb-4">
+      <div className="flex-1">
+        <div className="flex items-center mb-2">
+          <span className={`flex items-center justify-center px-2 py-0.5 rounded-full ${color} text-white text-xs mr-3`}>
+            {children}
+          </span>
+          <h3 className="font-medium">{title}</h3>
+        </div>
+        <p className="text-xs text-accent mb-1">{description}</p>
+      </div>
+      <button
+        onClick={onToggle}
+        className={`w-12 h-6 rounded-full shrink-0 ml-4 ${
+          isEnabled ? "bg-accent" : "bg-accent-secondary"
+        }`}
+      >
+        <div
+          className={`w-5 h-5 rounded-full bg-white transform transition-transform ${
+            isEnabled ? "translate-x-6" : "translate-x-1"
+          }`}
+        />
+      </button>
+    </div>
+  );
+};
 
 export default function SettingsPage() {
   const { currentTheme, themes, updateTheme, badgeSettings, updateBadgeSetting } = useSettings();
@@ -89,68 +121,71 @@ export default function SettingsPage() {
         {activeTab === "gameCards" && (
           <div className="bg-primary p-6 rounded-lg">
             <h2 className="text-xl font-heading mb-4">Badge Visibility</h2>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span>Region Badges</span>
-                <button
-                  onClick={() => updateBadgeSetting("showRegion", !badgeSettings.showRegion)}
-                  className={`w-12 h-6 rounded-full ${
-                    badgeSettings.showRegion ? "bg-accent" : "bg-accent-secondary"
-                  }`}
-                >
-                  <div
-                    className={`w-5 h-5 rounded-full bg-white transform transition-transform ${
-                      badgeSettings.showRegion ? "translate-x-6" : "translate-x-1"
-                    }`}
-                  />
-                </button>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Cache Badges</span>
-                <button
-                  onClick={() => updateBadgeSetting("showCache", !badgeSettings.showCache)}
-                  className={`w-12 h-6 rounded-full ${
-                    badgeSettings.showCache ? "bg-accent" : "bg-accent-secondary"
-                  }`}
-                >
-                  <div
-                    className={`w-5 h-5 rounded-full bg-white transform transition-transform ${
-                      badgeSettings.showCache ? "translate-x-6" : "translate-x-1"
-                    }`}
-                  />
-                </button>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Local Game Badges</span>
-                <button
-                  onClick={() => updateBadgeSetting("showLocal", !badgeSettings.showLocal)}
-                  className={`w-12 h-6 rounded-full ${
-                    badgeSettings.showLocal ? "bg-accent" : "bg-accent-secondary"
-                  }`}
-                >
-                  <div
-                    className={`w-5 h-5 rounded-full bg-white transform transition-transform ${
-                      badgeSettings.showLocal ? "translate-x-6" : "translate-x-1"
-                    }`}
-                  />
-                </button>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Image Source Badges</span>
-                <button
-                  onClick={() => updateBadgeSetting("showImageSource", !badgeSettings.showImageSource)}
-                  className={`w-12 h-6 rounded-full ${
-                    badgeSettings.showImageSource ? "bg-accent" : "bg-accent-secondary"
-                  }`}
-                >
-                  <div
-                    className={`w-5 h-5 rounded-full bg-white transform transition-transform ${
-                      badgeSettings.showImageSource ? "translate-x-6" : "translate-x-1"
-                    }`}
-                  />
-                </button>
-              </div>
-            </div>
+            <p className="text-accent mb-6">Badges appear on game cards to provide additional information about games.</p>
+            
+            <BadgePreview 
+              color="bg-green-500" 
+              title="Cached Badge" 
+              description="Shows in the top-left of the game cover when an image is loaded from cache. This means the image was previously downloaded and stored locally."
+              isEnabled={badgeSettings.showNetworkBadges}
+              onToggle={() => updateBadgeSetting("showNetworkBadges", !badgeSettings.showNetworkBadges)}
+            >
+              <span className="flex items-center">
+                Cached
+              </span>
+            </BadgePreview>
+            
+            <BadgePreview 
+              color="bg-pink-500" 
+              title="Fresh Badge" 
+              description="Shows in the top-right of the game cover when an image is newly downloaded from an external API (like Wikipedia)."
+              isEnabled={badgeSettings.showNetworkBadges}
+              onToggle={() => updateBadgeSetting("showNetworkBadges", !badgeSettings.showNetworkBadges)}
+            >
+              <span className="flex items-center">
+                <TbWifi className="mr-0.5" size={12} />
+                Fresh
+              </span>
+            </BadgePreview>
+            
+            <BadgePreview 
+              color="bg-blue-600" 
+              title="Local Badge" 
+              description="Appears when a game is stored locally on your device rather than being streamed or downloaded."
+              isEnabled={badgeSettings.showLocalBadges}
+              onToggle={() => updateBadgeSetting("showLocalBadges", !badgeSettings.showLocalBadges)}
+            >
+              <span className="flex items-center">
+                <FaDesktop className="mr-0.5" size={12} />
+                Local
+              </span>
+            </BadgePreview>
+            
+            <BadgePreview 
+              color="bg-blue-600" 
+              title="Region Badges" 
+              description="Shows the game's region (USA, Japan, Europe, etc.). Different regions are color-coded: USA (blue), Japan (red), Europe (yellow), etc."
+              isEnabled={badgeSettings.showRegionBadges}
+              onToggle={() => updateBadgeSetting("showRegionBadges", !badgeSettings.showRegionBadges)}
+            >
+              <span className="flex items-center">
+                <FaGlobeAmericas className="mr-0.5" size={12} />
+                USA
+              </span>
+            </BadgePreview>
+            
+            <BadgePreview 
+              color="bg-purple-600" 
+              title="Image Source Badge" 
+              description="Shows where the game cover image was sourced from (Wiki, TGDB, ScreenScraper, etc.)."
+              isEnabled={badgeSettings.showImageSourceBadges}
+              onToggle={() => updateBadgeSetting("showImageSourceBadges", !badgeSettings.showImageSourceBadges)}
+            >
+              <span className="flex items-center">
+                <HiPhotograph className="mr-0.5" size={12} />
+                Wiki
+              </span>
+            </BadgePreview>
           </div>
         )}
       </div>
