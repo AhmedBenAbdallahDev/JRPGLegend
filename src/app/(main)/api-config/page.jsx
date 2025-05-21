@@ -4,11 +4,16 @@ import { useRouter } from 'next/navigation';
 import { FiRefreshCw, FiDatabase, FiSettings, FiSearch, FiImage, FiBookOpen } from 'react-icons/fi';
 import { HiOutlineCog, HiOutlineRefresh, HiOutlineDatabase, HiOutlineCheck, HiOutlineExclamation } from 'react-icons/hi';
 
-export default function ApiConfigPage() {
-  const router = useRouter();
+export default function ApiConfigPage() {  const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [screenscraper, setScreenscraper] = useState({ status: null, error: null });
-  const [thegamesdb, setThegamesdb] = useState({ status: null, error: null });
+  const [screenscraper, setScreenscraper] = useState({ status: null, error: null });  const [thegamesdb, setThegamesdb] = useState({
+    status: null, 
+    error: null,
+    testQuery: {
+      name: 'Super Mario 64',
+      platform: 'n64'
+    }
+  });
   const [wikimedia, setWikimedia] = useState({ status: null, error: null });
   
   // Check both APIs on load
@@ -37,17 +42,18 @@ export default function ApiConfigPage() {
           error: screenscraper.reason.message
         });
       }
-      
-      if (thegamesdb.status === 'fulfilled') {
-        setThegamesdb({
+        if (thegamesdb.status === 'fulfilled') {
+        setThegamesdb(prev => ({
+          ...prev,
           status: thegamesdb.value,
           error: null
-        });
+        }));
       } else {
-        setThegamesdb({
+        setThegamesdb(prev => ({
+          ...prev,
           status: null,
           error: thegamesdb.reason.message
-        });
+        }));
       }
       
       if (wikimediaStatus.status === 'fulfilled') {
@@ -101,20 +107,27 @@ export default function ApiConfigPage() {
       throw new Error(`Error checking Wikimedia API: ${error.message}`);
     }
   };
-  
-  const testScreenscraperSearch = async () => {
+    const testScreenscraperSearch = async () => {
     try {
       setLoading(true);
       
-      const response = await fetch('/api/game-covers?name=Super+Mario+Bros&core=nes&source=screenscraper');
+      // Use the proper ScreenScraper API endpoint directly
+      const response = await fetch('/api/screenscraper?name=Super+Mario+Bros&core=nes');
       const data = await response.json();
+      
+      // Add image preview for successful responses
+      let imagePreview = null;
+      if (data.success && data.coverUrl) {
+        imagePreview = data.coverUrl;
+      }
       
       // Update the screenscraper state with test results
       setScreenscraper(prev => ({
         ...prev,
         testResult: {
           success: response.ok,
-          data
+          data,
+          imagePreview
         }
       }));
     } catch (error) {
@@ -128,21 +141,37 @@ export default function ApiConfigPage() {
     } finally {
       setLoading(false);
     }
-  };
-  
-  const testTgdbSearch = async () => {
+  };  const testTgdbSearch = async () => {
     try {
       setLoading(true);
       
-      const response = await fetch('/api/game-covers?name=Super+Mario+Bros&core=nes&source=tgdb');
+      // Get the custom query parameters, with fallbacks
+      const name = thegamesdb.testQuery?.name || 'Super Mario 64';
+      const platform = thegamesdb.testQuery?.platform || 'n64';
+      
+      // Encode parameters for URL
+      const encodedName = encodeURIComponent(name);
+      const encodedPlatform = encodeURIComponent(platform);
+      
+      // Use the proper TheGamesDB API endpoint with the custom query
+      const response = await fetch(`/api/thegamesdb?name=${encodedName}&core=${encodedPlatform}&skipFallback=true`);
       const data = await response.json();
+      
+      // Add image preview for successful responses
+      let imagePreview = null;
+      if (data.success && data.coverUrl) {
+        imagePreview = data.coverUrl;
+      }
       
       // Update the thegamesdb state with test results
       setThegamesdb(prev => ({
         ...prev,
         testResult: {
           success: response.ok,
-          data
+          data,
+          imagePreview,
+          queriedGame: name,
+          queriedPlatform: platform
         }
       }));
     } catch (error) {
@@ -157,7 +186,6 @@ export default function ApiConfigPage() {
       setLoading(false);
     }
   };
-  
   const goToWikimediaTestPage = () => {
     router.push('/test-wiki');
   };
@@ -184,6 +212,15 @@ export default function ApiConfigPage() {
   
   const formatJson = (obj) => {
     return JSON.stringify(obj, null, 2);
+  };
+    const handleTgdbInputChange = (field, value) => {
+    setThegamesdb(prev => ({
+      ...prev,
+      testQuery: {
+        ...(prev.testQuery || { name: 'Super Mario 64', platform: 'n64' }),
+        [field]: value
+      }
+    }));
   };
   
   return (
@@ -264,10 +301,27 @@ export default function ApiConfigPage() {
               <FiImage className="mr-2" /> Open Test Page
             </button>
           </div>
-          
-          {screenscraper.testResult && (
+            {screenscraper.testResult && (
             <div className="mt-4 animate-fadeIn">
               <h3 className="text-xl font-bold mb-2 text-white">Test Results</h3>
+              
+              {screenscraper.testResult.imagePreview && (
+                <div className="mb-4">
+                  <h4 className="text-md font-semibold mb-2 text-accent">Super Mario Bros Cover Preview:</h4>
+                  <div className="w-48 h-48 bg-gray-800 rounded-lg overflow-hidden">
+                    <img 
+                      src={screenscraper.testResult.imagePreview} 
+                      alt="Super Mario Bros" 
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = '/game/placeholder.jpg';
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+              
               <pre className="p-3 bg-main rounded border border-accent/20 overflow-auto max-h-60 text-sm text-white/90">
                 {formatJson(screenscraper.testResult)}
               </pre>
@@ -317,9 +371,30 @@ export default function ApiConfigPage() {
             <div className="h-6 bg-main rounded w-full"></div>
           </div>
         )}
-        
-        <div className="space-y-3">
+          <div className="space-y-3">
           <p className="text-white/90">Test the TheGamesDB API connection or visit the dedicated test page for advanced testing.</p>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+            <div>
+              <label className="block text-sm font-medium text-white/80 mb-1">Game Name</label>              <input
+                type="text"
+                value={thegamesdb.testQuery?.name || 'Super Mario 64'}
+                onChange={(e) => handleTgdbInputChange('name', e.target.value)}
+                className="w-full px-3 py-2 bg-main rounded border border-accent/20 text-white/90 focus:outline-none focus:border-accent"
+                placeholder="e.g. Super Mario 64"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-white/80 mb-1">Platform (core)</label>              <input
+                type="text"
+                value={thegamesdb.testQuery?.platform || 'n64'}
+                onChange={(e) => handleTgdbInputChange('platform', e.target.value)}
+                className="w-full px-3 py-2 bg-main rounded border border-accent/20 text-white/90 focus:outline-none focus:border-accent"
+                placeholder="e.g. n64, snes, psx"
+              />
+            </div>
+          </div>
           
           <div className="flex flex-col sm:flex-row gap-3">
             <button
@@ -337,10 +412,27 @@ export default function ApiConfigPage() {
               <FiDatabase className="mr-2" /> Open Test Page
             </button>
           </div>
-          
-          {thegamesdb.testResult && (
+            {thegamesdb.testResult && (
             <div className="mt-4 animate-fadeIn">
-              <h3 className="text-xl font-bold mb-2 text-white">Test Results</h3>
+              <h3 className="text-xl font-bold mb-2 text-white">Test Results</h3>              {thegamesdb.testResult.imagePreview && (
+                <div className="mb-4">
+                  <h4 className="text-md font-semibold mb-2 text-accent">
+                    {thegamesdb.testResult.queriedGame || "Super Mario 64"} Cover Preview:
+                  </h4>
+                  <div className="w-48 h-48 bg-gray-800 rounded-lg overflow-hidden">
+                    <img 
+                      src={thegamesdb.testResult.imagePreview} 
+                      alt={thegamesdb.testResult.queriedGame || "Super Mario 64"} 
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = '/game/placeholder.jpg';
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+              
               <pre className="p-3 bg-main rounded border border-accent/20 overflow-auto max-h-60 text-sm text-white/90">
                 {formatJson(thegamesdb.testResult)}
               </pre>
@@ -387,9 +479,7 @@ export default function ApiConfigPage() {
           <div className="animate-pulse flex space-x-4 mb-4">
             <div className="h-6 bg-main rounded w-full"></div>
           </div>
-        )}
-        
-        <div className="space-y-3">
+        )}        <div className="space-y-3">
           <p className="text-white/90">Test the Wikimedia API through these dedicated test pages for different functionality:</p>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -451,4 +541,4 @@ export default function ApiConfigPage() {
       </div>
     </div>
   );
-} 
+}

@@ -3,11 +3,11 @@ import { getGameCoverUrl } from '@/lib/thegamesdb';
 import { getGameMetadata as getScreenscraperMetadata } from '@/lib/screenscraper';
 
 export async function GET(request) {
-  try {
-    const { searchParams } = new URL(request.url);
+  try {    const { searchParams } = new URL(request.url);
     const name = searchParams.get('name');
     const core = searchParams.get('core');
     const metadataOnly = searchParams.get('metadataOnly') === 'true';
+    const skipFallback = searchParams.get('skipFallback') === 'true';
 
     if (!name || !core) {
       return NextResponse.json(
@@ -29,11 +29,22 @@ export async function GET(request) {
 
     // Get game data from TheGamesDB (both metadata and cover URL in one call)
     const gameData = await getGameCoverUrl(name, core);
-    
-    if (!gameData) {
-      // Fallback to ScreenScraper if no results found
-      console.log(`No data found in TheGamesDB for ${name} on platform ${core}, falling back to ScreenScraper`);
-      return getFallbackResponse(request, name, core, metadataOnly, headers);
+      if (!gameData) {
+      // Fallback to ScreenScraper if no results found and skipFallback is not true
+      if (!skipFallback) {
+        console.log(`No data found in TheGamesDB for ${name} on platform ${core}, falling back to ScreenScraper`);
+        return getFallbackResponse(request, name, core, metadataOnly, headers);
+      } else {
+        // When skipFallback is true, return TheGamesDB-specific error
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'Game not found in TheGamesDB',
+            source: 'thegamesdb'
+          },
+          { status: 404, headers }
+        );
+      }
     }
     
     // Extract metadata and coverUrl
