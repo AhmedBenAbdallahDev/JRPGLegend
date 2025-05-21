@@ -248,28 +248,34 @@ export const getClientStoragePath = (gameTitle, fileType = 'rom') => {
 export default function GameBadges({ game }) {
   const { badgeSettings } = useSettings();
   const [isCached, setIsCached] = useState(false);
+  const [isFresh, setIsFresh] = useState(false);
   
   // Check if game is local
   const isLocal = game?.isLocal || game?.isOffline || isLocalImage(game?.image) || false;
   
-  // This effect runs after the component has mounted to check if a game card 
-  // actually has a cached image, by looking at the parent EnhancedGameCover component
+  // This effect runs after the component has mounted to check for badges from EnhancedGameCover
   useEffect(() => {
-    // Only run this check if we have a game title but the normal approach didn't find a cached image
-    if (game?.title && !isCached) {
-      // Look for an EnhancedGameCover-applied cached badge in our parent components
+    // Only run this check if we have a game title
+    if (game?.title) {
       try {
         // Find our parent element (the badge container)
-        const badgeEl = document.querySelector(`[data-game-title="${game.title}"] .bg-green-500`);
-        if (badgeEl) {
+        const cachedBadgeEl = document.querySelector(`[data-game-title="${game.title}"] .bg-green-500`);
+        if (cachedBadgeEl) {
           console.log(`[Badge PARENT CHECK] Found existing cache badge in parent for ${game.title}`);
           setIsCached(true);
+        }
+        
+        // Check for fresh badge
+        const freshBadgeEl = document.querySelector(`[data-game-title="${game.title}"] .bg-pink-500`);
+        if (freshBadgeEl) {
+          console.log(`[Badge PARENT CHECK] Found fresh badge in parent for ${game.title}`);
+          setIsFresh(true);
         }
       } catch (err) {
         console.error('[Badge PARENT CHECK] Error checking parent components:', err);
       }
     }
-  }, [game?.title, isCached]);
+  }, [game?.title]);
   
   // Effect to check if the image URL is in localStorage cache
   useEffect(() => {
@@ -410,8 +416,8 @@ export default function GameBadges({ game }) {
   
   // Notify when badge state changes - useful for debugging
   useEffect(() => {
-    console.log(`[Badge DEBUG] Badge state for ${game?.title || 'Unknown'}: isCached=${isCached}, will display=${isCached && badgeSettings.showCache}`);
-  }, [isCached, badgeSettings.showCache, game?.title]);
+    console.log(`[Badge DEBUG] Badge state for ${game?.title || 'Unknown'}: isCached=${isCached}, will display=${isCached && badgeSettings.showNetworkBadges}`);
+  }, [isCached, badgeSettings.showNetworkBadges, game?.title]);
   
   // Direct debug log - run once on mount
   useEffect(() => {
@@ -428,36 +434,36 @@ export default function GameBadges({ game }) {
   
   return (
     <div className="flex flex-col gap-1 items-end">
+      {/* Only show either fresh or cached badge, not both */}
+      {isFresh && badgeSettings.showNetworkBadges && !isCached && (
+        <span className="flex items-center justify-center px-2 py-0.5 rounded-full bg-pink-500 text-white text-xs">
+          <TbWifi className="mr-0.5" size={12} />
+          Fresh
+        </span>
+      )}
+      
       {/* Local game badge */}
-      {isLocal && badgeSettings.showLocal && (
-        <div className="bg-yellow-500 text-black text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
-          <FaDesktop className="w-3 h-3" />
-          <span>Local</span>
-        </div>
+      {isLocal && badgeSettings.showLocalBadges && (
+        <span className="flex items-center justify-center px-2 py-0.5 rounded-full bg-blue-600 text-white text-xs">
+          <FaDesktop className="mr-0.5" size={12} />
+          Local
+        </span>
       )}
       
-      {/* Cached image badge */}
-      {isCached && badgeSettings.showCache && (
-        <div className="bg-green-600 text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
-          <TbWifi className="w-3 h-3" />
-          <span>Cached</span>
-        </div>
-      )}
-      
-      {/* Region badge - always show a region badge, including for null/empty regions */}
-      {badgeSettings.showRegion && (
-        <div className={`${getRegionColor(game?.region)} text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1`}>
-          <FaGlobeAmericas className="w-3 h-3" />
-          <span>{getRegionName(game?.region)}</span>
-        </div>
+      {/* Region badge */}
+      {badgeSettings.showRegionBadges && (
+        <span className={`flex items-center justify-center px-2 py-0.5 rounded-full ${getRegionColor(game?.region)} text-white text-xs`}>
+          <FaGlobeAmericas className="mr-0.5" size={12} />
+          {getRegionName(game?.region)}
+        </span>
       )}
       
       {/* Image source badge */}
-      {badgeSettings.showImageSource && (
-        <div className="bg-purple-600 text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
-          <HiPhotograph className="w-3 h-3" />
+      {badgeSettings.showImageSourceBadges && (
+        <span className="flex items-center justify-center px-2 py-0.5 rounded-full bg-purple-600 text-white text-xs">
+          <HiPhotograph className="mr-0.5" size={12} />
           <span>{getImageSource(game)}</span>
-        </div>
+        </span>
       )}
     </div>
   );

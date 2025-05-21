@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { storeROM, getAllROMs } from '@/services/gameStorage';
+import { storeROM, getAllROMs, ROMS_DIRECTORY } from '@/services/gameStorage';
 
 export default function LocalGameUploader({ onUploadComplete }) {
   const [uploading, setUploading] = useState(false);
@@ -8,6 +8,7 @@ export default function LocalGameUploader({ onUploadComplete }) {
   const [gameTitle, setGameTitle] = useState('');
   const [platform, setPlatform] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
+  const [uploadStatus, setUploadStatus] = useState('');
   
   // Platform options
   const platforms = [
@@ -30,6 +31,7 @@ export default function LocalGameUploader({ onUploadComplete }) {
     const file = e.target.files[0];
     if (file) {
       setSelectedFile(file);
+      setUploadStatus(`Selected file: ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB)`);
       
       // Try to extract a game title from the filename
       if (!gameTitle) {
@@ -87,11 +89,14 @@ export default function LocalGameUploader({ onUploadComplete }) {
     
     setUploading(true);
     setError(null);
+    setUploadStatus('Starting upload process...');
     
     try {
+      setUploadStatus('Uploading ROM file to local storage directory...');
       const storagePath = await storeROM(selectedFile, gameTitle, platform);
       
       console.log(`Game stored at: ${storagePath}`);
+      setUploadStatus(`Game successfully stored at: ${storagePath}`);
       
       // Clear form
       setSelectedFile(null);
@@ -104,14 +109,16 @@ export default function LocalGameUploader({ onUploadComplete }) {
       
       // Notify parent component
       if (onUploadComplete) {
-        const allROMs = await getAllROMs();
+        const allROMs = getAllROMs();
         onUploadComplete(allROMs);
+        setUploadStatus('Upload complete - game added to library!');
       }
       
       setUploading(false);
     } catch (error) {
       console.error('Upload error:', error);
       setError(error.message || 'Failed to store ROM file');
+      setUploadStatus(`Error: ${error.message}`);
       setUploading(false);
     }
   };
@@ -143,6 +150,9 @@ export default function LocalGameUploader({ onUploadComplete }) {
               {selectedFile.name} ({(selectedFile.size / (1024 * 1024)).toFixed(2)} MB)
             </p>
           )}
+          <div className="text-xs mt-1 text-blue-300">
+            Debug: File will be copied to /public{ROMS_DIRECTORY} directory
+          </div>
         </div>
         
         <div className="mb-4">
@@ -156,6 +166,9 @@ export default function LocalGameUploader({ onUploadComplete }) {
               disabled={uploading}
             />
           </label>
+          <div className="text-xs mt-1 text-blue-300">
+            Debug: This title will be used for display and metadata storage
+          </div>
         </div>
         
         <div className="mb-4">
@@ -175,6 +188,9 @@ export default function LocalGameUploader({ onUploadComplete }) {
               ))}
             </select>
           </label>
+          <div className="text-xs mt-1 text-blue-300">
+            Debug: Platform info stored in localStorage under games_{platform}
+          </div>
         </div>
         
         <button
@@ -185,9 +201,16 @@ export default function LocalGameUploader({ onUploadComplete }) {
           {uploading ? 'Uploading...' : 'Add Game'}
         </button>
         
+        {uploadStatus && (
+          <div className="mt-2 p-2 bg-black/30 rounded text-sm">
+            <div className="font-bold text-xs">Upload Status:</div>
+            <div className="text-blue-200">{uploadStatus}</div>
+          </div>
+        )}
+        
         <p className="mt-4 text-xs text-gray-500">
-          The game ROM will be stored locally in your browser using IndexedDB. 
-          It will remain available until you clear your browser data.
+          The game ROM will be stored locally in your application's /public{ROMS_DIRECTORY} directory.
+          Metadata is stored in localStorage for easy access.
         </p>
       </form>
     </div>

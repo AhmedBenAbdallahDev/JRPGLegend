@@ -5,7 +5,11 @@ import { themes } from "@/context/SettingsContext";
 
 export default function ThemeProvider({ children }) {
   const { currentTheme } = useSettings();
-  const theme = themes[currentTheme];
+  const theme = themes[currentTheme] || themes.default;
+
+  if (!theme) {
+    return <div className="min-h-screen bg-black">{children}</div>;
+  }
 
   return (
     <div

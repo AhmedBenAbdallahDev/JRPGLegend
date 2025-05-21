@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { HiPhotograph } from 'react-icons/hi';
+import { TbWifi } from 'react-icons/tb';
 
 // Simple in-memory cache for cover URLs to reduce API calls during the session
 const coverCache = new Map();
@@ -123,6 +124,7 @@ export default function EnhancedGameCover({
   const [error, setError] = useState(null);
   const [isFromCache, setIsFromCache] = useState(!!getInitialImage() && 
     (getInitialImage()?.startsWith('http') || (getInitialImage()?.includes(':') && !getInitialImage()?.startsWith('file:'))));
+  const [isFreshDownload, setIsFreshDownload] = useState(false);
 
   useEffect(() => {
     // Skip fetch if we already have an image from initialization
@@ -181,6 +183,7 @@ export default function EnhancedGameCover({
               
                   if (data.success && data.imageUrl) {
                     setCoverUrl(data.imageUrl);
+                    setIsFreshDownload(true); // Mark as fresh download
                 saveToLocalCache(game.image, data.imageUrl);
               }
             }
@@ -272,6 +275,7 @@ export default function EnhancedGameCover({
     // Check in-memory cache first
     if (coverCache.has(cacheKey)) {
       setCoverUrl(coverCache.get(cacheKey));
+      setIsFreshDownload(!coverCache.has(cacheKey)); // Mark as fresh download if not from cache
       return;
     }
 
@@ -382,6 +386,7 @@ export default function EnhancedGameCover({
           }
           
           setLoading(false);
+          setIsFreshDownload(!coverCache.has(cacheKey)); // Mark as fresh download if not from cache
           return;
         }
         
@@ -420,6 +425,7 @@ export default function EnhancedGameCover({
               }
               
               setLoading(false);
+              setIsFreshDownload(!coverCache.has(cacheKey)); // Mark as fresh download if not from cache
               return;
             }
           }
@@ -535,9 +541,18 @@ export default function EnhancedGameCover({
         </div>
       )}
       
-      {isFromCache && coverUrl && !hideInternalBadges && (
-        <div className="absolute top-0 right-0 bg-green-500/80 text-white text-xs px-1 py-0.5 rounded-bl">
+      {isFromCache && coverUrl && (
+        <div className="absolute top-1 left-1 bg-green-500/90 text-white text-xs px-2 py-0.5 rounded-full shadow-md z-10">
           Cached
+        </div>
+      )}
+      
+      {isFreshDownload && coverUrl && !isFromCache && !hideInternalBadges && (
+        <div className="absolute top-1 right-1 bg-pink-500/90 text-white text-xs px-2 py-0.5 rounded-full shadow-md z-10">
+          <span className="flex items-center">
+            <TbWifi className="mr-0.5" size={12} />
+            Fresh
+          </span>
         </div>
       )}
     </div>

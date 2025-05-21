@@ -41,17 +41,17 @@ export default function GameCard({ game, category }) {
   
   return (
     <a href={`/game/${game.slug}`} className="group relative">
-      <div className="overflow-hidden rounded-lg border border-accent-secondary mb-2">
+      <div className="overflow-hidden rounded-lg border border-accent-secondary mb-2 relative">
         <EnhancedGameCover 
           game={game} 
           width={300}
           height={200}
           className="w-full h-full"
-          hideInternalBadges={true}
+          hideInternalBadges={false}
         />
         
         {/* Badge container - positioned at top-right corner */}
-        <div className="absolute top-2 right-2">
+        <div className="absolute top-3 right-2 z-20">
           <GameBadges game={game} />
         </div>
       </div>

@@ -44,13 +44,13 @@ export default function GameCardSmall({ game, category, onClick }) {
   const cardContent = (
     <>
       <div className="flex h-16 overflow-hidden rounded-lg">
-        <div className="w-16 h-16 flex-shrink-0">
+        <div className="w-16 h-16 flex-shrink-0 relative">
           <EnhancedGameCover 
             game={game} 
             width={64}
             height={64}
             className="w-full h-full"
-            hideInternalBadges={true}
+            hideInternalBadges={false}
           />
         </div>
         <div className="px-2 py-1 flex flex-col justify-between flex-grow">
@@ -62,10 +62,8 @@ export default function GameCardSmall({ game, category, onClick }) {
             </div>
           </div>
           
-          <div className="flex gap-1 flex-wrap">
-            <div className="scale-75 origin-left">
-              <GameBadges game={game} />
-            </div>
+          <div className="flex flex-col gap-1 items-end">
+            <GameBadges game={game} />
           </div>
         </div>
       </div>

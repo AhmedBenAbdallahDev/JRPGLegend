@@ -32,10 +32,10 @@ export const themes = {
 export function SettingsProvider({ children }) {
   const [currentTheme, setCurrentTheme] = useState("default");
   const [badgeSettings, setBadgeSettings] = useState({
-    showRegion: true,
-    showCache: true,
-    showLocal: true,
-    showImageSource: true
+    showRegionBadges: true,
+    showNetworkBadges: true,
+    showLocalBadges: true,
+    showImageSourceBadges: true
   });
 
   useEffect(() => {
